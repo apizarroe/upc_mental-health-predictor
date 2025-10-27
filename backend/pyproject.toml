@@ -1,0 +1,102 @@
+[project]
+name = "mental-health-predictor-api"
+version = "1.0.0"
+description = "API de predicción de trastornos mentales usando ML"
+requires-python = ">=3.9"
+
+[tool.ruff]
+# Longitud de línea
+line-length = 88
+
+# Python version
+target-version = "py311"
+
+# Directorios a excluir
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Reglas a activar
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+]
+
+# Reglas a ignorar
+ignore = [
+    "E501",  # line too long (manejado por formatter)
+    "B008",  # do not perform function calls in argument defaults (necesario para FastAPI)
+    "W191",  # indentation contains tabs
+]
+
+# Permitir fix automático para estas reglas
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Usar comillas dobles
+quote-style = "double"
+
+# Indentar con espacios
+indent-style = "space"
+
+# Respetar magic trailing comma
+skip-magic-trailing-comma = false
+
+# Auto-detectar line endings
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "transformers.*",
+    "xgboost.*",
+    "sklearn.*",
+    "nltk.*",
+    "spacy.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
