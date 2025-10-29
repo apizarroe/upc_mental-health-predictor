@@ -1,3 +1,129 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+/* Custom utility classes with vibrant health colors */
+.btn-primary {
+	padding: 0.5rem 1.5rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+	box-shadow: 0 4px 6px -1px rgb(102 126 234 / 0.4);
+	transition: all 0.3s ease;
+	border: none;
+}
+
+.btn-primary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 10px 20px -5px rgb(102 126 234 / 0.5);
+}
+
+.btn-primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.btn-secondary {
+	padding: 0.5rem 1.5rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	color: white;
+	box-shadow: 0 4px 6px -1px rgb(240 147 251 / 0.4);
+	transition: all 0.3s ease;
+	border: none;
+}
+
+.btn-secondary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 10px 20px -5px rgb(240 147 251 / 0.5);
+}
+
+.btn-outline {
+	padding: 0.5rem 1.5rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	border: 2px solid #667eea;
+	color: #667eea;
+	background-color: white;
+	transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+	transform: translateY(-2px);
+}
+
+.btn-danger {
+	padding: 0.5rem 1.5rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	color: white;
+	box-shadow: 0 4px 6px -1px rgb(245 87 108 / 0.4);
+	transition: all 0.3s ease;
+	border: none;
+}
+
+.btn-danger:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 10px 20px -5px rgb(245 87 108 / 0.5);
+}
+
+.card {
+	background: white;
+	border-radius: 1rem;
+	box-shadow: 0 10px 30px -5px rgb(0 0 0 / 0.1);
+	overflow: hidden;
+	border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.card-header {
+	padding: 1.25rem 1.5rem;
+	border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+	background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(240, 147, 251, 0.05) 100%);
+}
+
+.card-body {
+	padding: 1.5rem;
+}
+
+.form-input {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: 2px solid rgba(102, 126, 234, 0.2);
+	border-radius: 0.75rem;
+	transition: all 0.3s ease;
+	background-color: white;
+}
+
+.form-input:focus {
+	outline: none;
+	border-color: #667eea;
+	box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+	transform: translateY(-1px);
+}
+
+.badge-success {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.25rem 0.75rem;
+	border-radius: 9999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+	color: #1e40af;
+}
+
+.badge-danger {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.25rem 0.75rem;
+	border-radius: 9999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	color: white;
+}
