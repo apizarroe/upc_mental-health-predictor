@@ -270,9 +270,13 @@ upc_mental-health-predictor/
 │   ├── architecture/
 │   │   ├── system-design.md
 │   │   └── data-flow.md
-│   ├── api/
-│   │   ├── sveltekit-routes.md     # Docs de API SvelteKit
-│   │   └── ml-service.md           # Docs de API Python
+│   ├── api/                        # Documentación de APIs
+│   │   ├── crud/                   # APIs CRUD (SvelteKit)
+│   │   │   ├── pacientes.md       # API de gestión de pacientes
+│   │   │   ├── especialistas.md   # API de gestión de especialistas
+│   │   │   └── historias.md       # API de historias clínicas
+│   │   └── ml/                     # APIs ML (Python FastAPI)
+│   │       └── predicciones.md    # API de predicciones con BERT/XGBoost/RF
 │   ├── database/
 │   │   └── schema.md               # Esquema de BD
 │   └── guides/
@@ -632,8 +636,15 @@ Response:
 ```
 
 Para documentación completa de la API, visita:
-- SvelteKit API: `/docs/api/sveltekit-routes.md`
-- Python ML API: `http://localhost:8000/docs` (Swagger UI)
+
+**APIs CRUD (SvelteKit):**
+- Pacientes: [docs/api/crud/pacientes.md](docs/api/crud/pacientes.md)
+- Especialistas: [docs/api/crud/especialistas.md](docs/api/crud/especialistas.md)
+- Historias Clínicas: [docs/api/crud/historias.md](docs/api/crud/historias.md)
+
+**API ML (Python FastAPI):**
+- Predicciones: [docs/api/ml/predicciones.md](docs/api/ml/predicciones.md)
+- Swagger UI: `http://localhost:8000/docs` (cuando esté implementado)
 
 ## Desarrollo
 

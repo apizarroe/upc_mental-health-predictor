@@ -1,0 +1,135 @@
+import sql from '../db/client.js';
+
+/**
+ * Servicio para gestionar pacientes en la base de datos
+ */
+
+/**
+ * Obtener todos los pacientes activos
+ */
+export async function getAllPacientes() {
+	const pacientes = await sql`
+		SELECT * FROM paciente
+		WHERE flg_activo = true
+		ORDER BY id_paciente DESC
+	`;
+	return pacientes;
+}
+
+/**
+ * Obtener un paciente por ID
+ */
+export async function getPacienteById(id) {
+	const [paciente] = await sql`
+		SELECT * FROM paciente
+		WHERE id_paciente = ${id}
+	`;
+	return paciente;
+}
+
+/**
+ * Crear un nuevo paciente
+ * Setea automáticamente: fecha_registro (NOW) y flg_activo (true)
+ */
+export async function createPaciente(data) {
+	const [paciente] = await sql`
+		INSERT INTO paciente (
+			dni,
+			nombres,
+			apellidos,
+			fecha_nacimiento,
+			sexo,
+			direccion,
+			telefono,
+			correo,
+			contacto_emergencia,
+			telefono_emergencia,
+			fecha_registro,
+			flg_activo
+		) VALUES (
+			${data.dni}::varchar,
+			${data.nombres}::varchar,
+			${data.apellidos}::varchar,
+			${data.fecha_nacimiento}::date,
+			${data.sexo}::char,
+			${data.direccion}::varchar,
+			${data.telefono}::varchar,
+			${data.correo}::varchar,
+			${data.contacto_emergencia}::varchar,
+			${data.telefono_emergencia}::varchar,
+			NOW(),
+			true
+		)
+		RETURNING *
+	`;
+	return paciente;
+}
+
+/**
+ * Actualizar un paciente existente
+ * Solo actualiza los campos que se envían en data
+ */
+export async function updatePaciente(id, data) {
+	// Filtrar solo los campos que están presentes en data
+	const updates = {};
+	const allowedFields = [
+		'dni',
+		'nombres',
+		'apellidos',
+		'fecha_nacimiento',
+		'sexo',
+		'direccion',
+		'telefono',
+		'correo',
+		'contacto_emergencia',
+		'telefono_emergencia',
+		'flg_activo'
+	];
+
+	// Solo incluir campos que están definidos
+	for (const field of allowedFields) {
+		if (data[field] !== undefined) {
+			updates[field] = data[field];
+		}
+	}
+
+	// Si no hay campos para actualizar, retornar el paciente actual
+	if (Object.keys(updates).length === 0) {
+		return getPacienteById(id);
+	}
+
+	// Construir la query dinámicamente
+	const [paciente] = await sql`
+		UPDATE paciente
+		SET ${sql(updates)}
+		WHERE id_paciente = ${id}
+		RETURNING *
+	`;
+	return paciente;
+}
+
+/**
+ * Eliminar (desactivar) un paciente
+ * No elimina físicamente, solo setea flg_activo = false
+ */
+export async function deletePaciente(id) {
+	const [paciente] = await sql`
+		UPDATE paciente
+		SET flg_activo = false
+		WHERE id_paciente = ${id}
+		RETURNING *
+	`;
+	return paciente;
+}
+
+/**
+ * Eliminar físicamente un paciente (usar con precaución)
+ */
+export async function hardDeletePaciente(id) {
+	const [paciente] = await sql`
+		DELETE FROM paciente
+		WHERE id_paciente = ${id}
+		RETURNING *
+	`;
+	return paciente;
+}
