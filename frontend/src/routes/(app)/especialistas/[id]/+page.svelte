@@ -1,6 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
-	import PacienteForm from '$lib/components/forms/PacienteForm.svelte';
+	import EspecialistaForm from '$lib/components/forms/EspecialistaForm.svelte';
 
 	let { data } = $props();
 
@@ -9,7 +9,7 @@
 	let isEditing = $state(false);
 	let successMessage = $state(null);
 
-	let paciente = $derived(data.paciente);
+	let especialista = $derived(data.especialista);
 
 	async function handleSubmit(formData) {
 		try {
@@ -17,7 +17,7 @@
 			error = null;
 			successMessage = null;
 
-			const response = await fetch(`/api/pacientes/${paciente.id_paciente}`, {
+			const response = await fetch(`/api/especialistas/${especialista.id_especialista}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'
@@ -28,14 +28,14 @@
 			const result = await response.json();
 
 			if (result.success) {
-				paciente = result.data;
+				especialista = result.data;
 				isEditing = false;
-				successMessage = 'Paciente actualizado exitosamente';
+				successMessage = 'Especialista actualizado exitosamente';
 				setTimeout(() => {
 					successMessage = null;
 				}, 3000);
 			} else {
-				error = result.error || 'Error al actualizar paciente';
+				error = result.error || 'Error al actualizar especialista';
 			}
 		} catch (err) {
 			error = 'Error de conexión con el servidor';
@@ -44,37 +44,17 @@
 			isLoading = false;
 		}
 	}
-
-	function formatDate(dateString) {
-		const date = new Date(dateString);
-		return date.toLocaleDateString('es-PE', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function calcularEdad(fechaNacimiento) {
-		const hoy = new Date();
-		const nacimiento = new Date(fechaNacimiento);
-		let edad = hoy.getFullYear() - nacimiento.getFullYear();
-		const mes = hoy.getMonth() - nacimiento.getMonth();
-		if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-			edad--;
-		}
-		return edad;
-	}
 </script>
 
 <svelte:head>
-	<title>{paciente.nombres} {paciente.apellidos} - Sistema de Salud Mental</title>
+	<title>{especialista.nombres} {especialista.apellidos} - Sistema de Salud Mental</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 	<!-- Header -->
 	<div class="mb-8">
 		<button
-			onclick={() => goto('/pacientes')}
+			onclick={() => goto('/especialistas')}
 			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
@@ -82,14 +62,14 @@
 		<div class="flex justify-between items-start">
 			<div>
 				<h1 class="text-3xl font-bold text-gray-900">
-					{paciente.nombres}
-					{paciente.apellidos}
+					{especialista.nombres}
+					{especialista.apellidos}
 				</h1>
-				<p class="mt-2 text-gray-600">Información del paciente</p>
+				<p class="mt-2 text-gray-600">Información del especialista</p>
 			</div>
 			<button
 				onclick={() => (isEditing = !isEditing)}
-				class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+				class="btn-primary"
 			>
 				{isEditing ? 'Cancelar Edición' : 'Editar'}
 			</button>
@@ -114,7 +94,7 @@
 		{#if isEditing}
 			<!-- Modo Edición -->
 			<div class="p-6">
-				<PacienteForm patient={paciente} onSubmit={handleSubmit} {isLoading} submitLabel="Guardar Cambios" />
+				<EspecialistaForm especialista={especialista} onSubmit={handleSubmit} {isLoading} submitLabel="Guardar Cambios" />
 			</div>
 		{:else}
 			<!-- Modo Vista -->
@@ -125,30 +105,40 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 						<div>
 							<label class="text-sm font-medium text-gray-500">DNI</label>
-							<p class="mt-1 text-gray-900">{paciente.dni}</p>
-						</div>
-						<div>
-							<label class="text-sm font-medium text-gray-500">Fecha de Nacimiento</label>
-							<p class="mt-1 text-gray-900">
-								{formatDate(paciente.fecha_nacimiento)}
-								<span class="text-gray-500">({calcularEdad(paciente.fecha_nacimiento)} años)</span>
-							</p>
-						</div>
-						<div>
-							<label class="text-sm font-medium text-gray-500">Sexo</label>
-							<p class="mt-1 text-gray-900">{paciente.sexo === 'M' ? 'Masculino' : 'Femenino'}</p>
+							<p class="mt-1 text-gray-900">{especialista.dni}</p>
 						</div>
 						<div>
 							<label class="text-sm font-medium text-gray-500">Estado</label>
 							<p class="mt-1">
 								<span
-									class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {paciente.flg_activo
+									class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {especialista.flg_activo
 										? 'bg-green-100 text-green-800'
 										: 'bg-red-100 text-red-800'}"
 								>
-									{paciente.flg_activo ? 'Activo' : 'Inactivo'}
+									{especialista.flg_activo ? 'Activo' : 'Inactivo'}
 								</span>
 							</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Información Profesional -->
+				<div class="mb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-4 border-b pb-2">
+						Información Profesional
+					</h2>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<label class="text-sm font-medium text-gray-500">Especialidad</label>
+							<p class="mt-1 text-gray-900">{especialista.especialidad}</p>
+						</div>
+						<div>
+							<label class="text-sm font-medium text-gray-500">Número de Colegiatura</label>
+							<p class="mt-1 text-gray-900">{especialista.colegiatura}</p>
+						</div>
+						<div class="md:col-span-2">
+							<label class="text-sm font-medium text-gray-500">Cargo</label>
+							<p class="mt-1 text-gray-900">{especialista.cargo}</p>
 						</div>
 					</div>
 				</div>
@@ -160,33 +150,12 @@
 					</h2>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 						<div>
-							<label class="text-sm font-medium text-gray-500">Dirección</label>
-							<p class="mt-1 text-gray-900">{paciente.direccion}</p>
+							<label class="text-sm font-medium text-gray-500">Teléfono</label>
+							<p class="mt-1 text-gray-900">{especialista.telefono}</p>
 						</div>
 						<div>
-							<label class="text-sm font-medium text-gray-500">Teléfono</label>
-							<p class="mt-1 text-gray-900">{paciente.telefono}</p>
-						</div>
-						<div class="md:col-span-2">
 							<label class="text-sm font-medium text-gray-500">Correo Electrónico</label>
-							<p class="mt-1 text-gray-900">{paciente.correo}</p>
-						</div>
-					</div>
-				</div>
-
-				<!-- Contacto de Emergencia -->
-				<div class="mb-8">
-					<h2 class="text-xl font-semibold text-gray-900 mb-4 border-b pb-2">
-						Contacto de Emergencia
-					</h2>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<div>
-							<label class="text-sm font-medium text-gray-500">Nombre</label>
-							<p class="mt-1 text-gray-900">{paciente.contacto_emergencia}</p>
-						</div>
-						<div>
-							<label class="text-sm font-medium text-gray-500">Teléfono</label>
-							<p class="mt-1 text-gray-900">{paciente.telefono_emergencia}</p>
+							<p class="mt-1 text-gray-900">{especialista.correo}</p>
 						</div>
 					</div>
 				</div>
@@ -198,12 +167,8 @@
 					</h2>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 						<div>
-							<label class="text-sm font-medium text-gray-500">ID del Paciente</label>
-							<p class="mt-1 text-gray-900">{paciente.id_paciente}</p>
-						</div>
-						<div>
-							<label class="text-sm font-medium text-gray-500">Fecha de Registro</label>
-							<p class="mt-1 text-gray-900">{formatDate(paciente.fecha_registro)}</p>
+							<label class="text-sm font-medium text-gray-500">ID del Especialista</label>
+							<p class="mt-1 text-gray-900">{especialista.id_especialista}</p>
 						</div>
 					</div>
 				</div>

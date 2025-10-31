@@ -1,6 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
-	import PacienteForm from '$lib/components/forms/PacienteForm.svelte';
+	import EspecialistaForm from '$lib/components/forms/EspecialistaForm.svelte';
 
 	let isLoading = $state(false);
 	let error = $state(null);
@@ -10,7 +10,7 @@
 			isLoading = true;
 			error = null;
 
-			const response = await fetch('/api/pacientes', {
+			const response = await fetch('/api/especialistas', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -21,9 +21,9 @@
 			const result = await response.json();
 
 			if (result.success) {
-				goto('/pacientes');
+				goto('/especialistas');
 			} else {
-				error = result.error || 'Error al crear paciente';
+				error = result.error || 'Error al crear especialista';
 			}
 		} catch (err) {
 			error = 'Error de conexión con el servidor';
@@ -35,20 +35,20 @@
 </script>
 
 <svelte:head>
-	<title>Nuevo Paciente - Sistema de Salud Mental</title>
+	<title>Nuevo Especialista - Sistema de Salud Mental</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 	<!-- Header -->
 	<div class="mb-8">
 		<button
-			onclick={() => goto('/pacientes')}
+			onclick={() => goto('/especialistas')}
 			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
 		</button>
-		<h1 class="text-3xl font-bold text-gray-900">Nuevo Paciente</h1>
-		<p class="mt-2 text-gray-600">Registra un nuevo paciente en el sistema</p>
+		<h1 class="text-3xl font-bold text-gray-900">Nuevo Especialista</h1>
+		<p class="mt-2 text-gray-600">Registra un nuevo especialista en el sistema</p>
 	</div>
 
 	<!-- Error message -->
@@ -60,6 +60,6 @@
 
 	<!-- Formulario -->
 	<div class="bg-white shadow-md rounded-lg p-6">
-		<PacienteForm onSubmit={handleSubmit} {isLoading} submitLabel="Crear Paciente" />
+		<EspecialistaForm onSubmit={handleSubmit} {isLoading} submitLabel="Crear Especialista" />
 	</div>
 </div>

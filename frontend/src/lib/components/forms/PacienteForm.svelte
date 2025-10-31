@@ -1,8 +1,5 @@
 <script>
-	export let patient = null; // Si es edición, recibe datos del paciente
-	export let onSubmit = () => {}; // Callback cuando se envía el form
-	export let isLoading = false;
-	export let submitLabel = 'Guardar';
+	let { patient = null, onSubmit = () => {}, isLoading = false, submitLabel = 'Guardar' } = $props();
 
 	// Función para convertir fecha ISO a formato YYYY-MM-DD para input date
 	function formatDateForInput(dateString) {
@@ -58,7 +55,7 @@
 	}
 </script>
 
-<form on:submit|preventDefault={handleSubmit} class="space-y-6">
+<form onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }} class="space-y-6">
 	<!-- DNI y Nombres -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<div>

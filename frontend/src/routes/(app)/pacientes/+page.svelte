@@ -2,12 +2,12 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	let pacientes = [];
-	let isLoading = true;
-	let error = null;
-	let searchTerm = '';
-	let showDeleteModal = false;
-	let pacienteToDelete = null;
+	let pacientes = $state([]);
+	let isLoading = $state(true);
+	let error = $state(null);
+	let searchTerm = $state('');
+	let showDeleteModal = $state(false);
+	let pacienteToDelete = $state(null);
 
 	onMount(async () => {
 		await loadPacientes();
@@ -60,15 +60,17 @@
 		}
 	}
 
-	$: filteredPacientes = pacientes.filter((p) => {
+	let filteredPacientes = $derived(pacientes.filter((p) => {
 		const search = searchTerm.toLowerCase();
+		const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();
 		return (
 			p.dni?.toLowerCase().includes(search) ||
 			p.nombres?.toLowerCase().includes(search) ||
 			p.apellidos?.toLowerCase().includes(search) ||
+			nombreCompleto.includes(search) ||
 			p.correo?.toLowerCase().includes(search)
 		);
-	});
+	}));
 
 	function calcularEdad(fechaNacimiento) {
 		const hoy = new Date();
