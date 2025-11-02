@@ -5,12 +5,12 @@ import sql from '../db/client.js';
  */
 
 /**
- * Obtener todos los especialistas activos
+ * Obtener todos los especialistas (activos e inactivos)
+ * Retorna todos para que el frontend pueda mostrar métricas completas
  */
 export async function getAllEspecialistas() {
 	const especialistas = await sql`
 		SELECT * FROM especialista
-		WHERE flg_activo = true
 		ORDER BY id_especialista DESC
 	`;
 	return especialistas;

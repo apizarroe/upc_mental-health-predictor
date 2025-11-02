@@ -60,7 +60,11 @@
 		}
 	}
 
-	let filteredEspecialistas = $derived(especialistas.filter((e) => {
+	// Primero filtramos solo los activos
+	let especialistasActivos = $derived(especialistas.filter(e => e.flg_activo));
+
+	// Luego aplicamos el filtro de búsqueda solo sobre los activos
+	let filteredEspecialistas = $derived(especialistasActivos.filter((e) => {
 		const search = searchTerm.toLowerCase();
 		const nombreCompleto = `${e.nombres || ''} ${e.apellidos || ''}`.toLowerCase();
 		return (
@@ -129,7 +133,7 @@
 							</div>
 							<div class="ml-4">
 								<p class="text-sm font-medium text-neutral-600">Especialistas Activos</p>
-								<p class="text-2xl font-semibold text-neutral-900">{especialistas.filter(e => e.flg_activo).length}</p>
+								<p class="text-2xl font-semibold text-neutral-900">{especialistasActivos.length}</p>
 							</div>
 						</div>
 					</div>

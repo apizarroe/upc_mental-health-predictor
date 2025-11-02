@@ -60,7 +60,11 @@
 		}
 	}
 
-	let filteredPacientes = $derived(pacientes.filter((p) => {
+	// Primero filtramos solo los activos
+	let pacientesActivos = $derived(pacientes.filter(p => p.flg_activo));
+
+	// Luego aplicamos el filtro de búsqueda solo sobre los activos
+	let filteredPacientes = $derived(pacientesActivos.filter((p) => {
 		const search = searchTerm.toLowerCase();
 		const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();
 		return (
@@ -138,7 +142,7 @@
 							</div>
 							<div class="ml-4">
 								<p class="text-sm font-medium text-neutral-600">Pacientes Activos</p>
-								<p class="text-2xl font-semibold text-neutral-900">{pacientes.filter(p => p.flg_activo).length}</p>
+								<p class="text-2xl font-semibold text-neutral-900">{pacientesActivos.length}</p>
 							</div>
 						</div>
 					</div>
