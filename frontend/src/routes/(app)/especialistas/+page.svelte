@@ -85,13 +85,13 @@
 		<div class="mb-8">
 			<div class="flex justify-between items-start mb-4">
 				<div>
-					<h1 class="text-3xl font-bold text-neutral-900 flex items-center">
-						<svg class="w-8 h-8 text-primary-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<h1 class="text-3xl font-bold text-white flex items-center">
+						<svg class="w-8 h-8 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
 						</svg>
 						Gestión de Especialistas
 					</h1>
-					<p class="mt-2 text-neutral-600">Administra el personal de salud mental del centro</p>
+					<p class="mt-2 text-white/80">Administra el personal de salud mental del centro</p>
 				</div>
 				<button onclick={() => goto('/especialistas/nuevo')} class="btn-primary">
 					<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +203,7 @@
 					<table class="min-w-full divide-y divide-gray-200">
 						<thead class="bg-gray-50">
 							<tr>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
 									Especialista
 								</th>
 								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -226,15 +226,15 @@
 						<tbody class="bg-white divide-y divide-gray-200">
 							{#each filteredEspecialistas as especialista}
 								<tr class="hover:bg-gray-50 transition-colors">
-									<td class="px-6 py-4 whitespace-nowrap">
+									<td class="px-6 py-4">
 										<div class="flex items-center">
 											<div class="flex-shrink-0 h-10 w-10">
 												<div class="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
 													{especialista.nombres.charAt(0)}{especialista.apellidos.charAt(0)}
 												</div>
 											</div>
-											<div class="ml-4">
-												<div class="text-sm font-medium text-gray-900">
+											<div class="ml-4 min-w-0">
+												<div class="text-sm font-medium text-gray-900 truncate max-w-xs" title="{especialista.nombres} {especialista.apellidos}">
 													{especialista.nombres} {especialista.apellidos}
 												</div>
 												<div class="text-sm text-gray-500">DNI: {especialista.dni}</div>

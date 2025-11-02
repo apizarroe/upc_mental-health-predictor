@@ -71,29 +71,14 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-	<!-- Header -->
+	<!-- Back button -->
 	<div class="mb-8">
 		<button
 			onclick={() => goto('/pacientes')}
-			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+			class="text-white hover:text-white/80 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
 		</button>
-		<div class="flex justify-between items-start">
-			<div>
-				<h1 class="text-3xl font-bold text-gray-900">
-					{paciente.nombres}
-					{paciente.apellidos}
-				</h1>
-				<p class="mt-2 text-gray-600">Información del paciente</p>
-			</div>
-			<button
-				onclick={() => (isEditing = !isEditing)}
-				class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-			>
-				{isEditing ? 'Cancelar Edición' : 'Editar'}
-			</button>
-		</div>
 	</div>
 
 	<!-- Success message -->
@@ -111,6 +96,25 @@
 	{/if}
 
 	<div class="bg-white shadow-md rounded-lg overflow-hidden">
+		<!-- Header dentro de la tarjeta -->
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<div class="flex justify-between items-start gap-4">
+				<div class="flex-1 min-w-0">
+					<h1 class="text-2xl font-bold text-gray-900 break-words">
+						{paciente.nombres}
+						{paciente.apellidos}
+					</h1>
+					<p class="mt-1 text-gray-600">Información del paciente</p>
+				</div>
+				<button
+					onclick={() => (isEditing = !isEditing)}
+					class="flex-shrink-0 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+				>
+					{isEditing ? 'Cancelar Edición' : 'Editar'}
+				</button>
+			</div>
+		</div>
+
 		{#if isEditing}
 			<!-- Modo Edición -->
 			<div class="p-6">

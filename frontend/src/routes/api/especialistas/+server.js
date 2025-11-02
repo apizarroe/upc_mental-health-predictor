@@ -36,12 +36,16 @@ export async function POST({ request }) {
 	try {
 		const body = await request.json();
 
+		// Log para depuración
+		console.log('📝 Datos recibidos para crear especialista:', JSON.stringify(body, null, 2));
+
 		// Validar datos con Zod
 		const validatedData = createEspecialistaSchema.parse(body);
 
 		// Crear especialista en la base de datos
 		const especialista = await especialistasService.createEspecialista(validatedData);
 
+		console.log(`✅ Especialista creado exitosamente con ID: ${especialista.id_especialista}`);
 		return json(
 			{
 				success: true,
@@ -53,18 +57,20 @@ export async function POST({ request }) {
 	} catch (error) {
 		// Error de validación de Zod
 		if (error.name === 'ZodError') {
+			console.error('❌ Error de validación Zod en creación de especialista:');
+			console.error(error.issues || error.errors || error);
 			return json(
 				{
 					success: false,
-					error: 'Datos inválidos',
-					details: error.errors
+					error: 'Datos inválidos. Por favor revise los campos marcados.',
+					details: error.issues || error.errors || []
 				},
 				{ status: 400 }
 			);
 		}
 
 		// Otros errores
-		console.error('Error al crear especialista:', error);
+		console.error('❌ Error al crear especialista:', error);
 		return json(
 			{
 				success: false,

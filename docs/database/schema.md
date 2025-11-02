@@ -176,7 +176,7 @@ CREATE TABLE "historia_clinica" (
   "evaluacion_inicial" TEXT,
   "diagnostico_inicial" TEXT,
   "tratamientos_previos" TEXT,
-  "situacion_historia" VARCHAR(20),
+  "situacion_historia" VARCHAR(20) DEFAULT 'abierta',
   "fecha_actualizacion" TIMESTAMP,
   "especialista_actualizacion" BIGINT,
   "fecha_cierre" TIMESTAMP,

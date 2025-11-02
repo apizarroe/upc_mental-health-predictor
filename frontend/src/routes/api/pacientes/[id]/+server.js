@@ -47,6 +47,9 @@ export async function PUT({ params, request }) {
 		const { id } = params;
 		const body = await request.json();
 
+		// Log para depuración
+		console.log(`📝 Datos recibidos para actualizar paciente ${id}:`, JSON.stringify(body, null, 2));
+
 		// Validar datos con Zod
 		const validatedData = updatePacienteSchema.parse(body);
 
@@ -63,6 +66,7 @@ export async function PUT({ params, request }) {
 			);
 		}
 
+		console.log(`✅ Paciente ${id} actualizado exitosamente`);
 		return json({
 			success: true,
 			data: paciente,
@@ -71,18 +75,20 @@ export async function PUT({ params, request }) {
 	} catch (error) {
 		// Error de validación de Zod
 		if (error.name === 'ZodError') {
+			console.error(`❌ Error de validación Zod en actualización de paciente ${params.id}:`);
+			console.error(error.issues || error.errors || error);
 			return json(
 				{
 					success: false,
-					error: 'Datos inválidos',
-					details: error.errors
+					error: 'Datos inválidos. Por favor revise los campos marcados.',
+					details: error.issues || error.errors || []
 				},
 				{ status: 400 }
 			);
 		}
 
 		// Otros errores
-		console.error('Error al actualizar paciente:', error);
+		console.error('❌ Error al actualizar paciente:', error);
 		return json(
 			{
 				success: false,
