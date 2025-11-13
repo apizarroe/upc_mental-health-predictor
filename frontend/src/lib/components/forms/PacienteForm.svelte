@@ -25,25 +25,166 @@
 		telefono_emergencia: patient?.telefono_emergencia || ''
 	};
 
-	let errors = {};
+	let errors = $state({});
+
+	// Validación en tiempo real para DNI (solo números, máximo 8 caracteres)
+	function handleDniInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea número
+		let cleanValue = value.replace(/\D/g, '');
+
+		// Verificar si se intenta superar el límite de 8 caracteres
+		if (cleanValue.length > 8) {
+			alert('El DNI no puede superar los 8 caracteres numéricos');
+			cleanValue = cleanValue.slice(0, 8);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.dni = cleanValue;
+	}
+
+	// Validación en tiempo real para Nombres (solo letras y espacios, máximo 80 caracteres)
+	function handleNombresInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea letra o espacio
+		let cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+
+		// Verificar si se intenta superar el límite de 80 caracteres
+		if (cleanValue.length > 80) {
+			alert('Los nombres no pueden superar los 80 caracteres');
+			cleanValue = cleanValue.slice(0, 80);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.nombres = cleanValue;
+	}
+
+	// Validación en tiempo real para Apellidos (solo letras y espacios, máximo 80 caracteres)
+	function handleApellidosInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea letra o espacio
+		let cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+
+		// Verificar si se intenta superar el límite de 80 caracteres
+		if (cleanValue.length > 80) {
+			alert('Los apellidos no pueden superar los 80 caracteres');
+			cleanValue = cleanValue.slice(0, 80);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.apellidos = cleanValue;
+	}
+
+	// Validación en tiempo real para Teléfono del paciente (solo números, máximo 9 dígitos)
+	function handleTelefonoInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea número
+		let cleanValue = value.replace(/\D/g, '');
+
+		// Verificar si se intenta superar el límite de 9 caracteres
+		if (cleanValue.length > 9) {
+			alert('El teléfono no puede superar los 9 dígitos');
+			cleanValue = cleanValue.slice(0, 9);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.telefono = cleanValue;
+	}
+
+	// Validación en tiempo real para Contacto de emergencia (solo letras y espacios)
+	function handleContactoEmergenciaInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea letra o espacio
+		let cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.contacto_emergencia = cleanValue;
+	}
+
+	// Validación en tiempo real para Teléfono de emergencia (solo números, máximo 9 dígitos)
+	function handleTelefonoEmergenciaInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea número
+		let cleanValue = value.replace(/\D/g, '');
+
+		// Verificar si se intenta superar el límite de 9 caracteres
+		if (cleanValue.length > 9) {
+			alert('El teléfono de emergencia no puede superar los 9 dígitos');
+			cleanValue = cleanValue.slice(0, 9);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.telefono_emergencia = cleanValue;
+	}
 
 	function validateForm() {
 		errors = {};
 
-		if (!formData.dni) errors.dni = 'DNI es requerido';
-		if (!formData.nombres) errors.nombres = 'Nombres son requeridos';
-		if (!formData.apellidos) errors.apellidos = 'Apellidos son requeridos';
+		// Validación de DNI
+		if (!formData.dni) {
+			errors.dni = 'DNI es requerido';
+		} else if (!/^\d{8}$/.test(formData.dni)) {
+			errors.dni = 'DNI debe tener exactamente 8 dígitos numéricos';
+		}
+
+		// Validación de Nombres
+		if (!formData.nombres) {
+			errors.nombres = 'Nombres son requeridos';
+		} else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(formData.nombres)) {
+			errors.nombres = 'Los nombres solo pueden contener letras y espacios';
+		} else if (formData.nombres.length > 80) {
+			errors.nombres = 'Los nombres no pueden superar los 80 caracteres';
+		}
+
+		// Validación de Apellidos
+		if (!formData.apellidos) {
+			errors.apellidos = 'Apellidos son requeridos';
+		} else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(formData.apellidos)) {
+			errors.apellidos = 'Los apellidos solo pueden contener letras y espacios';
+		} else if (formData.apellidos.length > 80) {
+			errors.apellidos = 'Los apellidos no pueden superar los 80 caracteres';
+		}
+
 		if (!formData.fecha_nacimiento) errors.fecha_nacimiento = 'Fecha de nacimiento es requerida';
 		if (!formData.direccion) errors.direccion = 'Dirección es requerida';
-		if (!formData.telefono) errors.telefono = 'Teléfono es requerido';
+
+		// Validación de Teléfono
+		if (!formData.telefono) {
+			errors.telefono = 'Teléfono es requerido';
+		} else if (!/^\d{9}$/.test(formData.telefono)) {
+			errors.telefono = 'El teléfono debe tener exactamente 9 dígitos numéricos';
+		}
+
 		if (!formData.correo) errors.correo = 'Correo es requerido';
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo)) {
 			errors.correo = 'Correo inválido';
 		}
-		if (!formData.contacto_emergencia)
+
+		// Validación de Contacto de emergencia
+		if (!formData.contacto_emergencia) {
 			errors.contacto_emergencia = 'Contacto de emergencia es requerido';
-		if (!formData.telefono_emergencia)
+		} else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(formData.contacto_emergencia)) {
+			errors.contacto_emergencia = 'El contacto de emergencia solo puede contener letras y espacios';
+		}
+
+		// Validación de Teléfono de emergencia
+		if (!formData.telefono_emergencia) {
 			errors.telefono_emergencia = 'Teléfono de emergencia es requerido';
+		} else if (!/^\d{9}$/.test(formData.telefono_emergencia)) {
+			errors.telefono_emergencia = 'El teléfono de emergencia debe tener exactamente 9 dígitos numéricos';
+		}
 
 		return Object.keys(errors).length === 0;
 	}
@@ -65,8 +206,8 @@
 			<input
 				type="text"
 				id="dni"
-				bind:value={formData.dni}
-				maxlength="12"
+				value={formData.dni}
+				oninput={handleDniInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.dni}
 				disabled={isLoading}
@@ -83,8 +224,8 @@
 			<input
 				type="text"
 				id="nombres"
-				bind:value={formData.nombres}
-				maxlength="80"
+				value={formData.nombres}
+				oninput={handleNombresInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.nombres}
 				disabled={isLoading}
@@ -104,8 +245,8 @@
 			<input
 				type="text"
 				id="apellidos"
-				bind:value={formData.apellidos}
-				maxlength="80"
+				value={formData.apellidos}
+				oninput={handleApellidosInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.apellidos}
 				disabled={isLoading}
@@ -177,8 +318,8 @@
 			<input
 				type="tel"
 				id="telefono"
-				bind:value={formData.telefono}
-				maxlength="20"
+				value={formData.telefono}
+				oninput={handleTelefonoInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.telefono}
 				disabled={isLoading}
@@ -216,8 +357,8 @@
 			<input
 				type="text"
 				id="contacto_emergencia"
-				bind:value={formData.contacto_emergencia}
-				maxlength="150"
+				value={formData.contacto_emergencia}
+				oninput={handleContactoEmergenciaInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.contacto_emergencia}
 				disabled={isLoading}
@@ -234,8 +375,8 @@
 			<input
 				type="tel"
 				id="telefono_emergencia"
-				bind:value={formData.telefono_emergencia}
-				maxlength="20"
+				value={formData.telefono_emergencia}
+				oninput={handleTelefonoEmergenciaInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.telefono_emergencia}
 				disabled={isLoading}

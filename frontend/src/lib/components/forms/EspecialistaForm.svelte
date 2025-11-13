@@ -13,14 +13,90 @@
 		cargo: especialista?.cargo || ''
 	};
 
-	let errors = {};
+	let errors = $state({});
+
+	// Validación en tiempo real para DNI (solo números, máximo 8 caracteres)
+	function handleDniInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea número
+		let cleanValue = value.replace(/\D/g, '');
+
+		// Verificar si se intenta superar el límite de 8 caracteres
+		if (cleanValue.length > 8) {
+			alert('El DNI no puede superar los 8 caracteres numéricos');
+			cleanValue = cleanValue.slice(0, 8);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.dni = cleanValue;
+	}
+
+	// Validación en tiempo real para Nombres (solo letras y espacios, máximo 80 caracteres)
+	function handleNombresInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea letra o espacio
+		let cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+
+		// Verificar si se intenta superar el límite de 80 caracteres
+		if (cleanValue.length > 80) {
+			alert('Los nombres no pueden superar los 80 caracteres');
+			cleanValue = cleanValue.slice(0, 80);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.nombres = cleanValue;
+	}
+
+	// Validación en tiempo real para Apellidos (solo letras y espacios, máximo 80 caracteres)
+	function handleApellidosInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea letra o espacio
+		let cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+
+		// Verificar si se intenta superar el límite de 80 caracteres
+		if (cleanValue.length > 80) {
+			alert('Los apellidos no pueden superar los 80 caracteres');
+			cleanValue = cleanValue.slice(0, 80);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.apellidos = cleanValue;
+	}
 
 	function validateForm() {
 		errors = {};
 
-		if (!formData.dni) errors.dni = 'DNI es requerido';
-		if (!formData.nombres) errors.nombres = 'Nombres son requeridos';
-		if (!formData.apellidos) errors.apellidos = 'Apellidos son requeridos';
+		// Validación de DNI
+		if (!formData.dni) {
+			errors.dni = 'DNI es requerido';
+		} else if (!/^\d{8}$/.test(formData.dni)) {
+			errors.dni = 'DNI debe tener exactamente 8 dígitos numéricos';
+		}
+
+		// Validación de Nombres
+		if (!formData.nombres) {
+			errors.nombres = 'Nombres son requeridos';
+		} else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(formData.nombres)) {
+			errors.nombres = 'Los nombres solo pueden contener letras y espacios';
+		} else if (formData.nombres.length > 80) {
+			errors.nombres = 'Los nombres no pueden superar los 80 caracteres';
+		}
+
+		// Validación de Apellidos
+		if (!formData.apellidos) {
+			errors.apellidos = 'Apellidos son requeridos';
+		} else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(formData.apellidos)) {
+			errors.apellidos = 'Los apellidos solo pueden contener letras y espacios';
+		} else if (formData.apellidos.length > 80) {
+			errors.apellidos = 'Los apellidos no pueden superar los 80 caracteres';
+		}
+
 		if (!formData.especialidad) errors.especialidad = 'Especialidad es requerida';
 		if (!formData.colegiatura) errors.colegiatura = 'Colegiatura es requerida';
 		if (!formData.telefono) errors.telefono = 'Teléfono es requerido';
@@ -50,8 +126,8 @@
 			<input
 				type="text"
 				id="dni"
-				bind:value={formData.dni}
-				maxlength="12"
+				value={formData.dni}
+				oninput={handleDniInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.dni}
 				disabled={isLoading}
@@ -68,8 +144,8 @@
 			<input
 				type="text"
 				id="nombres"
-				bind:value={formData.nombres}
-				maxlength="80"
+				value={formData.nombres}
+				oninput={handleNombresInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.nombres}
 				disabled={isLoading}
@@ -89,8 +165,8 @@
 			<input
 				type="text"
 				id="apellidos"
-				bind:value={formData.apellidos}
-				maxlength="80"
+				value={formData.apellidos}
+				oninput={handleApellidosInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.apellidos}
 				disabled={isLoading}

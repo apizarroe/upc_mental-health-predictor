@@ -43,12 +43,12 @@
 	<div class="mb-8">
 		<button
 			onclick={() => goto('/especialistas')}
-			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+			class="text-white hover:text-gray-200 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
 		</button>
-		<h1 class="text-3xl font-bold text-gray-900">Nuevo Especialista</h1>
-		<p class="mt-2 text-gray-600">Registra un nuevo especialista en el sistema</p>
+		<h1 class="text-3xl font-bold text-white">Nuevo Especialista</h1>
+		<p class="mt-2 text-white">Registra un nuevo especialista en el sistema</p>
 	</div>
 
 	<!-- Error message -->
