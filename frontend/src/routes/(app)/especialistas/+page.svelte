@@ -1,13 +1,19 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { canCreateEspecialistas, canUpdateEspecialistas, canDeleteEspecialistas } from '$lib/utils/permissions.js';
+
+	let { data } = $props();
 
 	let especialistas = $state([]);
 	let isLoading = $state(true);
 	let error = $state(null);
 	let searchTerm = $state('');
-	let showDeleteModal = $state(false);
-	let especialistaToDelete = $state(null);
+
+	// Permisos del usuario actual
+	const userRole = data.user.rol;
+	const canCreate = canCreateEspecialistas(userRole);
+	const canUpdate = canUpdateEspecialistas(userRole);
 
 	onMount(async () => {
 		await loadEspecialistas();
@@ -32,46 +38,11 @@
 		}
 	}
 
-	function confirmDelete(especialista) {
-		especialistaToDelete = especialista;
-		showDeleteModal = true;
-	}
-
-	async function deleteEspecialista() {
-		if (!especialistaToDelete) return;
-
-		try {
-			console.log('Eliminando especialista:', especialistaToDelete.id_especialista);
-			const response = await fetch(`/api/especialistas/${especialistaToDelete.id_especialista}`, {
-				method: 'DELETE'
-			});
-
-			console.log('Response status:', response.status);
-			const result = await response.json();
-			console.log('Result:', result);
-
-			if (result.success) {
-				showDeleteModal = false;
-				especialistaToDelete = null;
-				await loadEspecialistas();
-			} else {
-				showDeleteModal = false;
-				especialistaToDelete = null;
-				alert('Error al eliminar especialista: ' + result.error);
-			}
-		} catch (err) {
-			showDeleteModal = false;
-			especialistaToDelete = null;
-			alert('Error de conexión al eliminar especialista');
-			console.error(err);
-		}
-	}
-
-	// Primero filtramos solo los activos
+	// Conteo de especialistas activos para métricas
 	let especialistasActivos = $derived(especialistas.filter(e => e.flg_activo));
 
-	// Luego aplicamos el filtro de búsqueda solo sobre los activos
-	let filteredEspecialistas = $derived(especialistasActivos.filter((e) => {
+	// Aplicamos el filtro de búsqueda sobre TODOS los especialistas (activos e inactivos)
+	let filteredEspecialistas = $derived(especialistas.filter((e) => {
 		const search = searchTerm.toLowerCase();
 		const nombreCompleto = `${e.nombres || ''} ${e.apellidos || ''}`.toLowerCase();
 		return (
@@ -104,12 +75,14 @@
 					</h1>
 					<p class="mt-2 text-white/80">Administra el personal de salud mental del centro</p>
 				</div>
-				<button onclick={() => goto('/especialistas/nuevo')} class="btn-primary">
-					<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-					</svg>
-					Nuevo Especialista
-				</button>
+				{#if canCreate}
+					<button onclick={() => goto('/especialistas/nuevo')} class="btn-primary">
+						<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						Nuevo Especialista
+					</button>
+				{/if}
 			</div>
 
 			<!-- Stats Cards -->
@@ -199,14 +172,16 @@
 				</svg>
 				<h3 class="mt-2 text-sm font-medium text-gray-900">No hay especialistas registrados</h3>
 				<p class="mt-1 text-sm text-gray-500">Comienza agregando un nuevo especialista</p>
-				<div class="mt-6">
-					<button onclick={() => goto('/especialistas/nuevo')} class="btn-primary">
-						<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-						</svg>
-						Nuevo Especialista
-					</button>
-				</div>
+				{#if canCreate}
+					<div class="mt-6">
+						<button onclick={() => goto('/especialistas/nuevo')} class="btn-primary">
+							<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+							</svg>
+							Nuevo Especialista
+						</button>
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="card overflow-hidden">
@@ -275,24 +250,17 @@
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-										<button
-											onclick={() => goto(`/especialistas/${especialista.id_especialista}`)}
-											class="text-primary-600 hover:text-primary-900 mr-4"
-											title="Ver/Editar"
-										>
-											<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-											</svg>
-										</button>
-										<button
-											onclick={() => confirmDelete(especialista)}
-											class="text-red-600 hover:text-red-900"
-											title="Eliminar"
-										>
-											<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
-										</button>
+										{#if canUpdate}
+											<button
+												onclick={() => goto(`/especialistas/${especialista.id_especialista}`)}
+												class="text-primary-600 hover:text-primary-900"
+												title="Ver/Editar"
+											>
+												<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+												</svg>
+											</button>
+										{/if}
 									</td>
 								</tr>
 							{/each}
@@ -303,37 +271,3 @@
 		{/if}
 	</div>
 </div>
-
-<!-- Modal de confirmación de eliminación -->
-{#if showDeleteModal}
-	<div class="fixed inset-0 bg-neutral-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-		<div class="relative bg-white rounded-card shadow-soft max-w-md w-full p-6">
-			<div class="flex items-center mb-4">
-				<div class="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-					<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-					</svg>
-				</div>
-				<h3 class="ml-4 text-lg font-semibold text-neutral-900">Confirmar Eliminación</h3>
-			</div>
-			<p class="text-sm text-neutral-600 mb-2">
-				¿Está seguro que desea eliminar al especialista <strong class="text-neutral-900">{especialistaToDelete?.nombres} {especialistaToDelete?.apellidos}</strong>?
-			</p>
-			<p class="text-sm text-neutral-500 mb-6">Esta acción desactivará el especialista del sistema.</p>
-			<div class="flex gap-3 justify-end">
-				<button
-					onclick={() => {
-						showDeleteModal = false;
-						especialistaToDelete = null;
-					}}
-					class="btn-outline"
-				>
-					Cancelar
-				</button>
-				<button onclick={deleteEspecialista} class="btn-danger">
-					Eliminar
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}

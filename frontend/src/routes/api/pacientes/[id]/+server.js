@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { updatePacienteSchema } from '$lib/server/validators/paciente.js';
 import * as pacientesService from '$lib/server/services/pacientes.js';
+import * as historiasService from '$lib/server/services/historias.js';
 
 /**
  * GET /api/pacientes/[id]
@@ -42,7 +43,7 @@ export async function GET({ params }) {
  * PUT /api/pacientes/[id]
  * Actualizar un paciente existente
  */
-export async function PUT({ params, request }) {
+export async function PUT({ params, request, locals }) {
 	try {
 		const { id } = params;
 		const body = await request.json();
@@ -52,6 +53,26 @@ export async function PUT({ params, request }) {
 
 		// Validar datos con Zod
 		const validatedData = updatePacienteSchema.parse(body);
+
+		// Si se está desactivando el paciente (flg_activo = false), cerrar historia clínica si está activa
+		let historiaClinicaCerrada = false;
+		if (validatedData.flg_activo === false) {
+			const historiaActiva = await historiasService.getHistoriaByPacienteId(id);
+
+			if (historiaActiva && (!historiaActiva.situacion_historia || historiaActiva.situacion_historia === 'Abierta')) {
+				const idEspecialista = locals.user?.id_especialista || null;
+				await historiasService.updateHistoria(
+					historiaActiva.id_historia,
+					{
+						situacion_historia: 'Cierre Temporal',
+						motivo_cierre: 'Paciente dado de baja del sistema'
+					},
+					idEspecialista
+				);
+				historiaClinicaCerrada = true;
+				console.log(`✅ Historia clínica ${historiaActiva.id_historia} cerrada temporalmente por desactivación de paciente ${id}`);
+			}
+		}
 
 		// Actualizar paciente
 		const paciente = await pacientesService.updatePaciente(id, validatedData);
@@ -70,7 +91,8 @@ export async function PUT({ params, request }) {
 		return json({
 			success: true,
 			data: paciente,
-			message: 'Paciente actualizado exitosamente'
+			message: 'Paciente actualizado exitosamente',
+			historiaClinicaCerrada
 		});
 	} catch (error) {
 		// Error de validación de Zod
@@ -104,10 +126,30 @@ export async function PUT({ params, request }) {
  * DELETE /api/pacientes/[id]
  * Eliminar (desactivar) un paciente
  * No elimina físicamente, solo setea flg_activo = false
+ * Si tiene historia clínica activa, la cierra temporalmente
  */
-export async function DELETE({ params }) {
+export async function DELETE({ params, locals }) {
 	try {
 		const { id } = params;
+
+		// Verificar si el paciente tiene historia clínica activa
+		const historiaActiva = await historiasService.getHistoriaByPacienteId(id);
+
+		// Si tiene historia clínica activa (estado "Abierta"), cerrarla temporalmente
+		if (historiaActiva && (!historiaActiva.situacion_historia || historiaActiva.situacion_historia === 'Abierta')) {
+			const idEspecialista = locals.user?.id_especialista || null;
+			await historiasService.updateHistoria(
+				historiaActiva.id_historia,
+				{
+					situacion_historia: 'Cierre Temporal',
+					motivo_cierre: 'Paciente dado de baja del sistema'
+				},
+				idEspecialista
+			);
+			console.log(`✅ Historia clínica ${historiaActiva.id_historia} cerrada temporalmente por baja de paciente ${id}`);
+		}
+
+		// Desactivar al paciente
 		const paciente = await pacientesService.deletePaciente(id);
 
 		if (!paciente) {
@@ -123,7 +165,8 @@ export async function DELETE({ params }) {
 		return json({
 			success: true,
 			data: paciente,
-			message: 'Paciente desactivado exitosamente'
+			message: 'Paciente desactivado exitosamente',
+			historiaClinicaCerrada: !!historiaActiva
 		});
 	} catch (error) {
 		console.error('Error al eliminar paciente:', error);

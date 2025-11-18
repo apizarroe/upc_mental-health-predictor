@@ -8,8 +8,9 @@
 	let error = $state(null);
 	let isEditing = $state(false);
 	let successMessage = $state(null);
+	let showStatusModal = $state(false);
 
-	let especialista = $derived(data.especialista);
+	let especialista = $state(data.especialista);
 
 	async function handleSubmit(formData) {
 		try {
@@ -38,6 +39,51 @@
 				error = result.error || 'Error al actualizar especialista';
 			}
 		} catch (err) {
+			error = 'Error de conexión con el servidor';
+			console.error(err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function confirmStatusChange() {
+		showStatusModal = true;
+	}
+
+	async function toggleEspecialistaStatus() {
+		try {
+			isLoading = true;
+			error = null;
+			successMessage = null;
+
+			const nuevoEstado = !especialista.flg_activo;
+
+			const response = await fetch(`/api/especialistas/${especialista.id_especialista}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					flg_activo: nuevoEstado
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				especialista = result.data;
+				showStatusModal = false;
+				successMessage = `Especialista ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`;
+
+				setTimeout(() => {
+					successMessage = null;
+				}, 5000);
+			} else {
+				showStatusModal = false;
+				error = result.error || 'Error al cambiar estado del especialista';
+			}
+		} catch (err) {
+			showStatusModal = false;
 			error = 'Error de conexión con el servidor';
 			console.error(err);
 		} finally {
@@ -86,12 +132,20 @@
 					</h1>
 					<p class="mt-1 text-gray-600">Información del especialista</p>
 				</div>
-				<button
-					onclick={() => (isEditing = !isEditing)}
-					class="flex-shrink-0 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
-				>
-					{isEditing ? 'Cancelar Edición' : 'Editar'}
-				</button>
+				<div class="flex gap-2 flex-shrink-0">
+					<button
+						onclick={() => (isEditing = !isEditing)}
+						class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+					>
+						{isEditing ? 'Cancelar Edición' : 'Editar'}
+					</button>
+					<button
+						onclick={confirmStatusChange}
+						class="px-4 py-2 {especialista.flg_activo ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md transition-colors whitespace-nowrap"
+					>
+						{especialista.flg_activo ? 'Desactivar' : 'Activar'}
+					</button>
+				</div>
 			</div>
 		</div>
 
@@ -180,3 +234,50 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Modal de confirmación de cambio de estado -->
+{#if showStatusModal}
+	<div class="fixed inset-0 bg-neutral-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+		<div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+			<div class="flex items-center mb-4">
+				<div class="flex-shrink-0 w-12 h-12 rounded-full {especialista.flg_activo ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center">
+					{#if especialista.flg_activo}
+						<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+					{:else}
+						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					{/if}
+				</div>
+				<h3 class="ml-4 text-lg font-semibold text-neutral-900">
+					{especialista.flg_activo ? 'Desactivar Especialista' : 'Activar Especialista'}
+				</h3>
+			</div>
+
+			<p class="text-sm text-neutral-600 mb-4">
+				¿Está seguro que desea {especialista.flg_activo ? 'desactivar' : 'activar'} al especialista <strong class="text-neutral-900">{especialista.nombres} {especialista.apellidos}</strong>?
+			</p>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					onclick={() => {
+						showStatusModal = false;
+					}}
+					class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+					disabled={isLoading}
+				>
+					Cancelar
+				</button>
+				<button
+					onclick={toggleEspecialistaStatus}
+					class="px-4 py-2 {especialista.flg_activo ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md transition-colors"
+					disabled={isLoading}
+				>
+					{isLoading ? 'Procesando...' : (especialista.flg_activo ? 'Desactivar' : 'Activar')}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

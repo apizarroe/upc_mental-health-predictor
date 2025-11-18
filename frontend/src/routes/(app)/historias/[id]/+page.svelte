@@ -8,8 +8,12 @@
 	let error = $state(null);
 	let isEditing = $state(false);
 	let successMessage = $state(null);
+	let showCierreTemporalModal = $state(false);
+	let showCierreDefinitivoModal = $state(false);
+	let showReabrirModal = $state(false);
+	let motivoCierre = $state('');
 
-	let historia = $derived(data.historia);
+	let historia = $state(data.historia);
 	let medicaciones = $state(data.medicaciones || []);
 
 	// Parsear hábitos personales
@@ -64,37 +68,126 @@
 		}
 	}
 
-	async function handleCerrarHistoria() {
-		const motivo = prompt('Ingrese el motivo de cierre de la historia clínica:');
-		if (!motivo || motivo.trim() === '') {
-			alert('Debe ingresar un motivo para cerrar la historia clínica');
-			return;
-		}
+	function openCierreTemporalModal() {
+		motivoCierre = '';
+		showCierreTemporalModal = true;
+	}
 
-		if (!confirm('¿Está seguro de cerrar esta historia clínica? Esta acción no se puede deshacer.')) {
+	function openCierreDefinitivoModal() {
+		motivoCierre = '';
+		showCierreDefinitivoModal = true;
+	}
+
+	async function confirmarCierreTemporal() {
+		if (!motivoCierre || motivoCierre.trim() === '') {
+			error = 'Debe ingresar un motivo para el cierre temporal';
 			return;
 		}
 
 		try {
-			const response = await fetch(`/api/historias/${historia.id_historia}/cerrar`, {
-				method: 'POST',
+			isLoading = true;
+			error = null;
+
+			const response = await fetch(`/api/historias/${historia.id_historia}`, {
+				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ motivo_cierre: motivo })
+				body: JSON.stringify({
+					situacion_historia: 'Cierre Temporal',
+					motivo_cierre: motivoCierre
+				})
 			});
 
 			const result = await response.json();
 
 			if (result.success) {
-				alert('Historia clínica cerrada exitosamente');
-				window.location.reload();
+				showCierreTemporalModal = false;
+				successMessage = 'Historia clínica cerrada temporalmente';
+				setTimeout(() => window.location.reload(), 1500);
 			} else {
-				alert('Error al cerrar historia clínica: ' + result.error);
+				error = result.error || 'Error al cerrar temporalmente';
 			}
 		} catch (err) {
-			alert('Error de conexión al cerrar historia clínica');
+			error = 'Error de conexión';
 			console.error(err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function confirmarCierreDefinitivo() {
+		if (!motivoCierre || motivoCierre.trim() === '') {
+			error = 'Debe ingresar un motivo para el cierre definitivo';
+			return;
+		}
+
+		try {
+			isLoading = true;
+			error = null;
+
+			const response = await fetch(`/api/historias/${historia.id_historia}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					situacion_historia: 'Cierre Definitivo',
+					motivo_cierre: motivoCierre
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				showCierreDefinitivoModal = false;
+				successMessage = 'Historia clínica cerrada definitivamente';
+				setTimeout(() => window.location.reload(), 1500);
+			} else {
+				error = result.error || 'Error al cerrar definitivamente';
+			}
+		} catch (err) {
+			error = 'Error de conexión';
+			console.error(err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function openReabrirModal() {
+		showReabrirModal = true;
+	}
+
+	async function confirmarReabrirHistoria() {
+		try {
+			isLoading = true;
+			error = null;
+
+			const response = await fetch(`/api/historias/${historia.id_historia}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					situacion_historia: 'Abierta',
+					motivo_cierre: null
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				showReabrirModal = false;
+				successMessage = 'Historia clínica reabierta exitosamente';
+				setTimeout(() => window.location.reload(), 1500);
+			} else {
+				error = result.error || 'Error al reabrir historia clínica';
+			}
+		} catch (err) {
+			error = 'Error de conexión';
+			console.error(err);
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -137,16 +230,42 @@
 			← Volver a la lista
 		</button>
 		<div class="flex justify-between items-start">
-			<div>
+			<div class="flex-1">
 				<h1 class="text-3xl font-bold text-white">
 					Historia Clínica
 				</h1>
 				<p class="mt-2 text-white/80">
 					{historia.paciente_nombres} {historia.paciente_apellidos}
 				</p>
+				<!-- Badge de estado -->
+				<div class="mt-3">
+					{#if !historia.situacion_historia || historia.situacion_historia === 'Abierta'}
+						<span class="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							Abierta
+						</span>
+					{:else if historia.situacion_historia === 'Cierre Temporal'}
+						<span class="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
+							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							Cierre Temporal
+						</span>
+					{:else if historia.situacion_historia === 'Cierre Definitivo'}
+						<span class="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-full bg-red-100 text-red-800">
+							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							Cierre Definitivo
+						</span>
+					{/if}
+				</div>
 			</div>
 			<div class="flex gap-2">
-				{#if historia.situacion_historia !== 'Cerrada'}
+				{#if !historia.situacion_historia || historia.situacion_historia === 'Abierta'}
+					<!-- Estado Abierta: puede editar y cerrar -->
 					<button
 						onclick={() => (isEditing = !isEditing)}
 						class="px-4 py-2 bg-white text-purple-600 rounded-md hover:bg-gray-50 font-semibold"
@@ -154,14 +273,29 @@
 						{isEditing ? 'Cancelar Edición' : 'Editar'}
 					</button>
 					<button
-						onclick={handleCerrarHistoria}
+						onclick={openCierreTemporalModal}
+						class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 font-semibold"
+					>
+						Cierre Temporal
+					</button>
+					<button
+						onclick={openCierreDefinitivoModal}
 						class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold"
 					>
-						Cerrar Historia
+						Cierre Definitivo
 					</button>
-				{:else}
+				{:else if historia.situacion_historia === 'Cierre Temporal'}
+					<!-- Estado Cierre Temporal: solo puede reabrir -->
+					<button
+						onclick={openReabrirModal}
+						class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold"
+					>
+						Reabrir Historia
+					</button>
+				{:else if historia.situacion_historia === 'Cierre Definitivo'}
+					<!-- Estado Cierre Definitivo: solo visualización -->
 					<span class="px-4 py-2 bg-gray-100 text-gray-800 rounded-md font-semibold">
-						Historia Cerrada
+						Solo lectura
 					</span>
 				{/if}
 			</div>
@@ -529,3 +663,149 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal Cierre Temporal -->
+{#if showCierreTemporalModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+		<div class="bg-white rounded-lg max-w-md w-full p-6">
+			<h3 class="text-lg font-semibold text-gray-900 mb-4">Cierre Temporal de Historia Clínica</h3>
+
+			<div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+				<p class="text-sm text-yellow-800">
+					Esta acción cerrará temporalmente la historia clínica. Podrá reabrirla posteriormente si es necesario.
+				</p>
+			</div>
+
+			<div class="mb-4">
+				<label for="motivoCierreTemporal" class="block text-sm font-medium text-gray-700 mb-2">
+					Motivo del Cierre Temporal <span class="text-red-600">*</span>
+				</label>
+				<textarea
+					id="motivoCierreTemporal"
+					bind:value={motivoCierre}
+					rows="4"
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+					placeholder="Ingrese el motivo del cierre temporal..."
+				></textarea>
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					onclick={() => {
+						showCierreTemporalModal = false;
+						motivoCierre = '';
+						error = null;
+					}}
+					class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-semibold"
+					disabled={isLoading}
+				>
+					Cancelar
+				</button>
+				<button
+					onclick={confirmarCierreTemporal}
+					class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 font-semibold"
+					disabled={isLoading}
+				>
+					{isLoading ? 'Cerrando...' : 'Confirmar Cierre'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Cierre Definitivo -->
+{#if showCierreDefinitivoModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+		<div class="bg-white rounded-lg max-w-md w-full p-6">
+			<h3 class="text-lg font-semibold text-gray-900 mb-4">Cierre Definitivo de Historia Clínica</h3>
+
+			<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+				<p class="text-sm text-red-800 font-semibold mb-2">
+					⚠️ Advertencia: Esta acción es irreversible
+				</p>
+				<p class="text-sm text-red-700">
+					El cierre definitivo no podrá ser revertido. La historia quedará en modo solo lectura de forma permanente.
+				</p>
+			</div>
+
+			<div class="mb-4">
+				<label for="motivoCierreDefinitivo" class="block text-sm font-medium text-gray-700 mb-2">
+					Motivo del Cierre Definitivo <span class="text-red-600">*</span>
+				</label>
+				<textarea
+					id="motivoCierreDefinitivo"
+					bind:value={motivoCierre}
+					rows="4"
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+					placeholder="Ingrese el motivo del cierre definitivo..."
+				></textarea>
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button
+					onclick={() => {
+						showCierreDefinitivoModal = false;
+						motivoCierre = '';
+						error = null;
+					}}
+					class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-semibold"
+					disabled={isLoading}
+				>
+					Cancelar
+				</button>
+				<button
+					onclick={confirmarCierreDefinitivo}
+					class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold"
+					disabled={isLoading}
+				>
+					{isLoading ? 'Cerrando...' : 'Confirmar Cierre Definitivo'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Reabrir Historia -->
+{#if showReabrirModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+		<div class="bg-white rounded-lg max-w-md w-full p-6">
+			<h3 class="text-lg font-semibold text-gray-900 mb-4">Reabrir Historia Clínica</h3>
+
+			<div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+				<p class="text-sm text-green-800">
+					¿Está seguro de reabrir esta historia clínica?
+				</p>
+				<p class="text-sm text-green-700 mt-2">
+					La historia volverá a estar activa y podrá editarse nuevamente.
+				</p>
+			</div>
+
+			{#if historia.motivo_cierre}
+				<div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+					<p class="text-xs text-gray-600 font-medium mb-1">Motivo del cierre anterior:</p>
+					<p class="text-sm text-gray-700">{historia.motivo_cierre}</p>
+				</div>
+			{/if}
+
+			<div class="flex gap-3 justify-end">
+				<button
+					onclick={() => {
+						showReabrirModal = false;
+						error = null;
+					}}
+					class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-semibold"
+					disabled={isLoading}
+				>
+					Cancelar
+				</button>
+				<button
+					onclick={confirmarReabrirHistoria}
+					class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold"
+					disabled={isLoading}
+				>
+					{isLoading ? 'Reabriendo...' : 'Confirmar Reapertura'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

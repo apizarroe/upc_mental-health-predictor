@@ -97,7 +97,8 @@ export async function updateHistoria(id, data, idEspecialista) {
 		'evaluacion_inicial',
 		'diagnostico_inicial',
 		'tratamientos_previos',
-		'situacion_historia'
+		'situacion_historia',
+		'motivo_cierre'
 	];
 
 	for (const field of allowedFields) {
@@ -112,6 +113,16 @@ export async function updateHistoria(id, data, idEspecialista) {
 
 	updates.fecha_actualizacion = new Date();
 	updates.especialista_actualizacion = idEspecialista;
+
+	// Si se está cerrando la historia (temporal o definitivo), actualizar fecha_cierre
+	if (data.situacion_historia === 'Cierre Temporal' || data.situacion_historia === 'Cierre Definitivo') {
+		updates.fecha_cierre = new Date();
+	}
+
+	// Si se está reabriendo la historia, limpiar fecha_cierre
+	if (data.situacion_historia === 'Abierta') {
+		updates.fecha_cierre = null;
+	}
 
 	const [historia] = await sql`
 		UPDATE historia_clinica

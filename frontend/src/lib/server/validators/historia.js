@@ -27,7 +27,8 @@ export const updateHistoriaSchema = z.object({
 	evaluacion_inicial: z.string().optional(),
 	diagnostico_inicial: z.string().optional(),
 	tratamientos_previos: z.string().optional(),
-	situacion_historia: z.string().max(20).optional()
+	situacion_historia: z.string().max(20).optional(),
+	motivo_cierre: z.string().optional().nullable()
 });
 
 export const cerrarHistoriaSchema = z.object({

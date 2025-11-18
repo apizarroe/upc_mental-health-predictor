@@ -69,6 +69,24 @@
 		formData.apellidos = cleanValue;
 	}
 
+	// Validación en tiempo real para Teléfono (solo números, máximo 9 dígitos)
+	function handleTelefonoInput(event) {
+		let value = event.target.value;
+
+		// Remover cualquier caracter que no sea número
+		let cleanValue = value.replace(/\D/g, '');
+
+		// Verificar si se intenta superar el límite de 9 caracteres
+		if (cleanValue.length > 9) {
+			alert('El teléfono no puede superar los 9 dígitos');
+			cleanValue = cleanValue.slice(0, 9);
+		}
+
+		// Actualizar el valor
+		event.target.value = cleanValue;
+		formData.telefono = cleanValue;
+	}
+
 	function validateForm() {
 		errors = {};
 
@@ -99,7 +117,14 @@
 
 		if (!formData.especialidad) errors.especialidad = 'Especialidad es requerida';
 		if (!formData.colegiatura) errors.colegiatura = 'Colegiatura es requerida';
-		if (!formData.telefono) errors.telefono = 'Teléfono es requerido';
+
+		// Validación de Teléfono
+		if (!formData.telefono) {
+			errors.telefono = 'Teléfono es requerido';
+		} else if (!/^\d{9}$/.test(formData.telefono)) {
+			errors.telefono = 'El teléfono debe tener exactamente 9 dígitos numéricos';
+		}
+
 		if (!formData.correo) errors.correo = 'Correo es requerido';
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo)) {
 			errors.correo = 'Correo inválido';
@@ -246,8 +271,8 @@
 			<input
 				type="tel"
 				id="telefono"
-				bind:value={formData.telefono}
-				maxlength="20"
+				value={formData.telefono}
+				oninput={handleTelefonoInput}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				class:border-red-500={errors.telefono}
 				disabled={isLoading}

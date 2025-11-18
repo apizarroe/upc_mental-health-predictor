@@ -164,6 +164,8 @@ export function getExpectedEspecialistaErrors(especialista) {
 
 	if (!especialista.telefono) {
 		errors.telefono = 'Teléfono es requerido';
+	} else if (!isValidTelefono(especialista.telefono)) {
+		errors.telefono = 'El teléfono debe tener exactamente 9 dígitos numéricos';
 	}
 
 	if (!especialista.correo) {

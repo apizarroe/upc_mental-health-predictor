@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import * as historiasService from '$lib/server/services/historias.js';
+import * as pacientesService from '$lib/server/services/pacientes.js';
 import { updateHistoriaSchema, cerrarHistoriaSchema } from '$lib/server/validators/historia.js';
 
 export async function GET({ params }) {
@@ -34,6 +35,26 @@ export async function PUT({ params, request, cookies }) {
 
 		// Validar datos
 		const validatedData = updateHistoriaSchema.parse(body);
+
+		// Si se está intentando reabrir la historia (cambiar a "Abierta"), validar que el paciente esté activo
+		if (validatedData.situacion_historia === 'Abierta') {
+			const historiaActual = await historiasService.getHistoriaById(params.id);
+			if (!historiaActual) {
+				return json({ success: false, error: 'Historia clínica no encontrada' }, { status: 404 });
+			}
+
+			const paciente = await pacientesService.getPacienteById(historiaActual.id_paciente);
+			if (!paciente) {
+				return json({ success: false, error: 'Paciente no encontrado' }, { status: 404 });
+			}
+
+			if (!paciente.flg_activo) {
+				return json({
+					success: false,
+					error: 'No se puede reabrir la historia clínica porque el paciente no se encuentra activo en el sistema'
+				}, { status: 400 });
+			}
+		}
 
 		const historia = await historiasService.updateHistoria(
 			params.id,

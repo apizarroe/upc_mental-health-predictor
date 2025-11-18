@@ -4,14 +4,14 @@ Esta carpeta contiene todas las utilidades, fixtures y mocks necesarios para esc
 
 ## 📊 Estado actual del proyecto
 
-- ✅ **Tests implementados**: 108 tests
+- ✅ **Tests implementados**: 113 tests
 - ✅ **Formularios cubiertos**: 3/3 completos
 - ✅ **Infraestructura**: Fixtures, Mocks y Utilidades listas
 
 ### Tests por componente
 ```
 ✅ PacienteForm.spec.js         - 43 tests
-✅ EspecialistaForm.spec.js     - 33 tests
+✅ EspecialistaForm.spec.js     - 38 tests
 ✅ HistoriaClinicaForm.spec.js  - 32 tests
 ```
 
@@ -231,7 +231,7 @@ npm run test:unit -- --coverage
 | Componente | Fixtures | Mocks | Tests | Estado |
 |-----------|----------|-------|-------|--------|
 | Pacientes | ✅ 6 | ✅ API | ✅ 43 | Completo |
-| Especialistas | ✅ 6 | ✅ API | ✅ 33 | Completo |
+| Especialistas | ✅ 6 | ✅ API | ✅ 38 | Completo |
 | Historias | ✅ 5 | ✅ API | ✅ 32 | Completo |
 | Navegación | - | ✅ goto | - | Disponible |
 | Validadores | - | - | ✅ | Completo |

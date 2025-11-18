@@ -1,13 +1,19 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { canCreatePacientes, canUpdatePacientes, canDeletePacientes } from '$lib/utils/permissions.js';
+
+	let { data } = $props();
 
 	let pacientes = $state([]);
 	let isLoading = $state(true);
 	let error = $state(null);
 	let searchTerm = $state('');
-	let showDeleteModal = $state(false);
-	let pacienteToDelete = $state(null);
+
+	// Permisos del usuario actual
+	const userRole = data.user.rol;
+	const canCreate = canCreatePacientes(userRole);
+	const canUpdate = canUpdatePacientes(userRole);
 
 	onMount(async () => {
 		await loadPacientes();
@@ -32,39 +38,20 @@
 		}
 	}
 
-	function confirmDelete(paciente) {
-		pacienteToDelete = paciente;
-		showDeleteModal = true;
-	}
-
-	async function deletePaciente() {
-		if (!pacienteToDelete) return;
-
-		try {
-			const response = await fetch(`/api/pacientes/${pacienteToDelete.id_paciente}`, {
-				method: 'DELETE'
-			});
-
-			const result = await response.json();
-
-			if (result.success) {
-				await loadPacientes();
-				showDeleteModal = false;
-				pacienteToDelete = null;
-			} else {
-				alert('Error al eliminar paciente: ' + result.error);
-			}
-		} catch (err) {
-			alert('Error de conexión al eliminar paciente');
-			console.error(err);
-		}
-	}
-
-	// Primero filtramos solo los activos
+	// Conteo de pacientes activos para métricas
 	let pacientesActivos = $derived(pacientes.filter(p => p.flg_activo));
 
-	// Luego aplicamos el filtro de búsqueda solo sobre los activos
-	let filteredPacientes = $derived(pacientesActivos.filter((p) => {
+	// Filtrado base según el rol del usuario
+	// - Admin: ve todos los pacientes (activos e inactivos)
+	// - Especialista: solo ve pacientes activos
+	let pacientesBase = $derived(
+		userRole === 'admin'
+			? pacientes
+			: pacientes.filter(p => p.flg_activo)
+	);
+
+	// Aplicamos el filtro de búsqueda sobre los pacientes base
+	let filteredPacientes = $derived(pacientesBase.filter((p) => {
 		const search = searchTerm.toLowerCase();
 		const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();
 		return (
@@ -106,16 +93,18 @@
 					</h1>
 					<p class="mt-2 text-white/80">Administra la información de los pacientes del centro</p>
 				</div>
-				<button onclick={() => goto('/pacientes/nuevo')} class="btn-primary">
-					<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-					</svg>
-					Nuevo Paciente
-				</button>
+				{#if canCreate}
+					<button onclick={() => goto('/pacientes/nuevo')} class="btn-primary">
+						<svg class="w-5 h-5 inline-block mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						Nuevo Paciente
+					</button>
+				{/if}
 			</div>
 
 			<!-- Stats Cards -->
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+			<div class="grid grid-cols-1 md:grid-cols-{userRole === 'admin' ? '3' : '2'} gap-4 mb-6">
 				<div class="card">
 					<div class="card-body">
 						<div class="flex items-center">
@@ -125,28 +114,34 @@
 								</svg>
 							</div>
 							<div class="ml-4">
-								<p class="text-sm font-medium text-neutral-600">Total Pacientes</p>
-								<p class="text-2xl font-semibold text-neutral-900">{pacientes.length}</p>
+								<p class="text-sm font-medium text-neutral-600">
+									{userRole === 'admin' ? 'Total Pacientes' : 'Pacientes Activos'}
+								</p>
+								<p class="text-2xl font-semibold text-neutral-900">
+									{userRole === 'admin' ? pacientes.length : pacientesActivos.length}
+								</p>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				<div class="card">
-					<div class="card-body">
-						<div class="flex items-center">
-							<div class="p-3 rounded-lg bg-secondary-100">
-								<svg class="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-							</div>
-							<div class="ml-4">
-								<p class="text-sm font-medium text-neutral-600">Pacientes Activos</p>
-								<p class="text-2xl font-semibold text-neutral-900">{pacientesActivos.length}</p>
+				{#if userRole === 'admin'}
+					<div class="card">
+						<div class="card-body">
+							<div class="flex items-center">
+								<div class="p-3 rounded-lg bg-secondary-100">
+									<svg class="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+								</div>
+								<div class="ml-4">
+									<p class="text-sm font-medium text-neutral-600">Pacientes Activos</p>
+									<p class="text-2xl font-semibold text-neutral-900">{pacientesActivos.length}</p>
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
+				{/if}
 
 				<div class="card">
 					<div class="card-body">
@@ -213,7 +208,7 @@
 					<p class="text-neutral-600 mb-4">
 						{searchTerm ? 'No se encontraron pacientes con ese criterio de búsqueda' : 'No hay pacientes registrados'}
 					</p>
-					{#if !searchTerm}
+					{#if !searchTerm && canCreate}
 						<button onclick={() => goto('/pacientes/nuevo')} class="btn-primary">
 							Registrar primer paciente
 						</button>
@@ -245,6 +240,9 @@
 								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Correo
 								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+									Estado
+								</th>
 								<th class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Acciones
 								</th>
@@ -273,25 +271,42 @@
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
 										{paciente.correo}
 									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										{#if paciente.flg_activo}
+											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+												Activo
+											</span>
+										{:else}
+											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+												Inactivo
+											</span>
+										{/if}
+									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-										<button
-											onclick={() => goto(`/pacientes/${paciente.id_paciente}`)}
-											class="text-primary-600 hover:text-primary-900 mr-4"
-											title="Ver/Editar"
-										>
-											<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-											</svg>
-										</button>
-										<button
-											onclick={() => confirmDelete(paciente)}
-											class="text-red-600 hover:text-red-900"
-											title="Eliminar"
-										>
-											<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
-										</button>
+										{#if canUpdate}
+											<!-- Botón de editar para admins -->
+											<button
+												onclick={() => goto(`/pacientes/${paciente.id_paciente}`)}
+												class="text-primary-600 hover:text-primary-900"
+												title="Editar"
+											>
+												<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+												</svg>
+											</button>
+										{:else}
+											<!-- Botón de ver para especialistas (solo lectura) -->
+											<button
+												onclick={() => goto(`/pacientes/${paciente.id_paciente}/ver`)}
+												class="text-blue-600 hover:text-blue-900"
+												title="Ver detalles"
+											>
+												<svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+												</svg>
+											</button>
+										{/if}
 									</td>
 								</tr>
 							{/each}
@@ -310,37 +325,3 @@
 		{/if}
 	</div>
 </div>
-
-<!-- Modal de confirmación de eliminación -->
-{#if showDeleteModal}
-	<div class="fixed inset-0 bg-neutral-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-		<div class="relative bg-white rounded-card shadow-soft max-w-md w-full p-6">
-			<div class="flex items-center mb-4">
-				<div class="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-					<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-					</svg>
-				</div>
-				<h3 class="ml-4 text-lg font-semibold text-neutral-900">Confirmar Eliminación</h3>
-			</div>
-			<p class="text-sm text-neutral-600 mb-2">
-				¿Está seguro que desea eliminar al paciente <strong class="text-neutral-900">{pacienteToDelete?.nombres} {pacienteToDelete?.apellidos}</strong>?
-			</p>
-			<p class="text-sm text-neutral-500 mb-6">Esta acción desactivará el paciente del sistema.</p>
-			<div class="flex gap-3 justify-end">
-				<button
-					onclick={() => {
-						showDeleteModal = false;
-						pacienteToDelete = null;
-					}}
-					class="btn-outline"
-				>
-					Cancelar
-				</button>
-				<button onclick={deletePaciente} class="btn-danger">
-					Eliminar
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}

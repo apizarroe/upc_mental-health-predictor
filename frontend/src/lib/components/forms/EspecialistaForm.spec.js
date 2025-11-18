@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { especialistaValido, especialistaInvalido } from '../../../tests/fixtures';
-import { isValidDNI, isValidName, isValidEmail } from '../../../tests/utils';
+import { isValidDNI, isValidName, isValidEmail, isValidTelefono } from '../../../tests/utils';
 
 describe('EspecialistaForm - Validaciones', () => {
 	describe('Validación de DNI', () => {
@@ -170,6 +170,32 @@ describe('EspecialistaForm - Validaciones', () => {
 			expect(isValidName(especialistaInvalido.apellidos)).toBe(false);
 			expect(especialistaInvalido.especialidad).toBe('');
 			expect(especialistaInvalido.colegiatura).toBe('');
+		});
+	});
+
+	describe('Validación de Teléfono', () => {
+		it('debe aceptar teléfono válido de 9 dígitos', () => {
+			expect(isValidTelefono(especialistaValido.telefono)).toBe(true);
+			expect(isValidTelefono('987654321')).toBe(true);
+		});
+
+		it('debe rechazar teléfono con menos de 9 dígitos', () => {
+			expect(isValidTelefono('12345')).toBe(false);
+			expect(isValidTelefono('12345678')).toBe(false);
+		});
+
+		it('debe rechazar teléfono con más de 9 dígitos', () => {
+			expect(isValidTelefono('1234567890')).toBe(false);
+		});
+
+		it('debe rechazar teléfono con letras', () => {
+			expect(isValidTelefono('98765432a')).toBe(false);
+			expect(isValidTelefono('abcd12345')).toBe(false);
+		});
+
+		it('debe rechazar teléfono con caracteres especiales', () => {
+			expect(isValidTelefono('987-654321')).toBe(false);
+			expect(isValidTelefono('987 654 321')).toBe(false);
 		});
 	});
 
