@@ -1,0 +1,17 @@
+pregunta_id,patient_id,sesion,message,timestamp
+1,PAC001,S001,"Últimamente me he sentido muy triste y abrumada. El trabajo se ha convertido en una enorme fuente de estrés para mí.",2025-01-15 10:00:00
+2,PAC001,S001,"Recientemente obtuve un ascenso en el trabajo, lo cual pensé que sería emocionante. Pero las responsabilidades y la presión adicionales acaban de pasar factura a mi salud mental. Ha sido una experiencia realmente conmovedora para mí.",2025-01-15 10:05:00
+3,PAC001,S001,"Bueno, la carga de trabajo ha aumentado significativamente y me resulta difícil mantener el equilibrio entre el trabajo y la vida personal. Me he quedado hasta tarde en la oficina y siento como si estuviera constantemente bajo un montón de tareas interminables. Es muy difícil mantener el ritmo y está afectando mi bienestar general.",2025-01-15 10:10:00
+4,PAC001,S001,"He estado tratando de priorizar mis tareas y delegar siempre que sea posible. También comencé a practicar la meditación durante mis descansos para ayudar a controlar el estrés. Pero a veces siento que no importa lo que haga, no puedo tomar un descanso. Ha sido una lucha constante.",2025-01-15 10:15:00
+5,PAC001,S001,"Tienes razón. Realmente no me he sincerado sobre mis luchas con mis compañeros de trabajo ni con mi supervisor. Supongo que he tenido miedo de parecer débil o incapaz. ¿Cómo puedo abordar esta discusión sin sentirme vulnerable?",2025-01-15 10:20:00
+6,PAC001,S001,"Gracias por su comprensión y orientación. Agradezco el recordatorio de que no tengo que enfrentar esto solo. Reuniré mi coraje e iniciaré esa conversación pronto. Necesito priorizar mi bienestar y encontrar un equilibrio más saludable.",2025-01-15 10:25:00
+1,PAC002,S001,"Estoy muy feliz porque logré completar mi proyecto más importante del año. Me siento orgulloso y motivado.",2025-01-16 14:30:00
+2,PAC002,S001,"He estado pasando más tiempo con mi familia y amigos. Me hace sentir muy bien y acompañado en todo momento.",2025-01-16 14:35:00
+1,PAC003,S001,"No encuentro sentido a nada últimamente. Me siento vacío, sin energía y con mucha tristeza constantemente.",2025-01-17 09:15:00
+2,PAC003,S001,"Tengo episodios de llanto sin razón aparente y me despierto cansado todos los días.",2025-01-17 09:20:00
+3,PAC003,S001,"Siento que nada mejora y no tengo motivación para hacer nada.",2025-01-17 09:25:00
+1,PAC004,S001,"Recientemente obtuve un ascenso en el trabajo, lo cual pensé que sería emocionante.",2025-01-18 11:00:00
+2,PAC004,S001,"Pero las responsabilidades y la presión adicionales han pasado factura a mi salud mental.",2025-01-18 11:05:00
+1,PAC005,S001,"He estado tratando de priorizar mis tareas y delegar siempre que sea posible.",2025-01-19 16:45:00
+2,PAC005,S001,"También comencé a practicar la meditación durante mis descansos para ayudar a controlar el estrés.",2025-01-19 16:50:00
+3,PAC005,S001,"Pero a veces siento que no importa lo que haga, no puedo tomar un descanso. Ha sido una lucha constante.",2025-01-19 16:55:00
