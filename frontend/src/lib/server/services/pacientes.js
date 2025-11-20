@@ -5,12 +5,12 @@ import sql from '../db/client.js';
  */
 
 /**
- * Obtener todos los pacientes activos
+ * Obtener todos los pacientes (activos e inactivos)
+ * Retorna todos para que el frontend pueda mostrar métricas completas
  */
 export async function getAllPacientes() {
 	const pacientes = await sql`
 		SELECT * FROM paciente
-		WHERE flg_activo = true
 		ORDER BY id_paciente DESC
 	`;
 	return pacientes;

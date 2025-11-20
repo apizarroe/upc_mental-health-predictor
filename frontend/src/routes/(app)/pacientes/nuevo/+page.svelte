@@ -1,9 +1,9 @@
 <script>
 	import { goto } from '$app/navigation';
-	import PatientForm from '$lib/components/forms/PatientForm.svelte';
+	import PacienteForm from '$lib/components/forms/PacienteForm.svelte';
 
-	let isLoading = false;
-	let error = null;
+	let isLoading = $state(false);
+	let error = $state(null);
 
 	async function handleSubmit(formData) {
 		try {
@@ -42,13 +42,13 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<button
-			on:click={() => goto('/pacientes')}
-			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+			onclick={() => goto('/pacientes')}
+			class="text-white hover:text-gray-200 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
 		</button>
-		<h1 class="text-3xl font-bold text-gray-900">Nuevo Paciente</h1>
-		<p class="mt-2 text-gray-600">Registra un nuevo paciente en el sistema</p>
+		<h1 class="text-3xl font-bold text-white">Nuevo Paciente</h1>
+		<p class="mt-2 text-white">Registra un nuevo paciente en el sistema</p>
 	</div>
 
 	<!-- Error message -->
@@ -60,6 +60,6 @@
 
 	<!-- Formulario -->
 	<div class="bg-white shadow-md rounded-lg p-6">
-		<PatientForm onSubmit={handleSubmit} {isLoading} submitLabel="Crear Paciente" />
+		<PacienteForm onSubmit={handleSubmit} {isLoading} submitLabel="Crear Paciente" />
 	</div>
 </div>

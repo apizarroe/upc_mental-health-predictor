@@ -505,25 +505,26 @@ uvicorn app.main:app --reload      # Servidor desarrollo
 
 #### Pacientes
 ```http
-GET    /api/pacientes              # Listar todos los pacientes
+GET    /api/pacientes              # Listar todos los pacientes activos
 POST   /api/pacientes              # Crear nuevo paciente
 GET    /api/pacientes/[id]         # Obtener paciente por ID
 PUT    /api/pacientes/[id]         # Actualizar paciente
-DELETE /api/pacientes/[id]         # Eliminar paciente
+DELETE /api/pacientes/[id]         # Desactivar paciente (soft delete)
+GET    /api/pacientes/buscar-dni/[dni]  # Buscar paciente por DNI
 ```
 
 **Ejemplo Request POST /api/pacientes**:
 ```json
 {
   "dni": "12345678",
-  "nombres": "Juan",
-  "apellidos": "Pérez García",
+  "nombres": "María Rosa",
+  "apellidos": "Sánchez López",
   "fecha_nacimiento": "1990-05-15",
-  "sexo": "M",
-  "direccion": "Av. Principal 123",
+  "sexo": "F",
+  "direccion": "Av. Principal 123, San Isidro",
   "telefono": "987654321",
-  "correo": "juan.perez@email.com",
-  "contacto_emergencia": "María Pérez",
+  "correo": "maria.sanchez@email.com",
+  "contacto_emergencia": "Carlos Sánchez (hermano)",
   "telefono_emergencia": "923456789"
 }
 ```
@@ -531,63 +532,131 @@ DELETE /api/pacientes/[id]         # Eliminar paciente
 **Ejemplo Response GET /api/pacientes/[id]**:
 ```json
 {
-  "id_paciente": 1,
-  "dni": "12345678",
-  "nombres": "Juan",
-  "apellidos": "Pérez García",
-  "fecha_nacimiento": "1990-05-15",
-  "sexo": "M",
-  "direccion": "Av. Principal 123",
-  "telefono": "987654321",
-  "correo": "juan.perez@email.com",
-  "contacto_emergencia": "María Pérez",
-  "telefono_emergencia": "923456789",
-  "fecha_registro": "2024-01-15T10:30:00Z",
-  "flg_activo": true
+  "success": true,
+  "data": {
+    "id_paciente": 1,
+    "dni": "12345678",
+    "nombres": "María Rosa",
+    "apellidos": "Sánchez López",
+    "fecha_nacimiento": "1990-05-15",
+    "sexo": "F",
+    "direccion": "Av. Principal 123, San Isidro",
+    "telefono": "987654321",
+    "correo": "maria.sanchez@email.com",
+    "contacto_emergencia": "Carlos Sánchez (hermano)",
+    "telefono_emergencia": "923456789",
+    "fecha_registro": "2024-01-15T10:30:00Z",
+    "flg_activo": true
+  }
 }
 ```
 
 #### Especialistas
 ```http
-GET    /api/especialistas          # Listar especialistas
-POST   /api/especialistas          # Crear especialista
-GET    /api/especialistas/[id]     # Obtener especialista
+GET    /api/especialistas          # Listar todos los especialistas activos
+POST   /api/especialistas          # Crear nuevo especialista
+GET    /api/especialistas/[id]     # Obtener especialista por ID
 PUT    /api/especialistas/[id]     # Actualizar especialista
-DELETE /api/especialistas/[id]     # Eliminar especialista
+DELETE /api/especialistas/[id]     # Desactivar especialista (soft delete)
 ```
 
 **Ejemplo Request POST /api/especialistas**:
 ```json
 {
   "dni": "87654321",
-  "nombres": "María",
+  "nombres": "María Elena",
   "apellidos": "González Pérez",
   "especialidad": "Psicóloga Clínica",
   "colegiatura": "CPsP12345",
   "correo": "mgonzalez@centro.com",
   "telefono": "987654321",
-  "cargo": "Psicóloga Senior"
+  "cargo": "Psicóloga Senior",
+  "usuario": "mgonzalez",
+  "password": "Password123!",
+  "rol": "especialista"
+}
+```
+
+**Ejemplo Response GET /api/especialistas**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id_especialista": 1,
+      "dni": "87654321",
+      "nombres": "María Elena",
+      "apellidos": "González Pérez",
+      "especialidad": "Psicóloga Clínica",
+      "colegiatura": "CPsP12345",
+      "correo": "mgonzalez@centro.com",
+      "telefono": "987654321",
+      "cargo": "Psicóloga Senior",
+      "usuario": "mgonzalez",
+      "rol": "especialista",
+      "flg_activo": true
+    }
+  ],
+  "count": 1
 }
 ```
 
 #### Historias Clínicas
 ```http
-GET    /api/historias              # Listar historias clínicas
-POST   /api/historias              # Crear historia clínica
-GET    /api/historias/[id]         # Obtener historia clínica
+GET    /api/historias              # Listar todas las historias clínicas
+POST   /api/historias              # Crear nueva historia clínica
+GET    /api/historias/[id]         # Obtener historia clínica por ID
 PUT    /api/historias/[id]         # Actualizar historia clínica
-GET    /api/historias/paciente/[id_paciente]  # Obtener historias de un paciente
+POST   /api/historias/[id]/cerrar  # Cerrar historia clínica
+GET    /api/pacientes/buscar-dni/[dni]  # Buscar paciente por DNI (incluye si tiene historia activa)
 ```
 
 **Ejemplo Request POST /api/historias**:
 ```json
 {
-  "id_paciente": 1,
-  "fecha_apertura": "2024-01-15",
-  "antecedentes_personales": "Sin antecedentes médicos relevantes",
-  "antecedentes_familiares": "Historia familiar de ansiedad",
-  "tratamientos_previos": "Ninguno",
-  "situacion_historia": "abierta"
+  "id_paciente": 4,
+  "servicio_origen": "Consulta Externa",
+  "antecedentes_personales": "Sin antecedentes médicos relevantes. No hospitalizaciones previas.",
+  "antecedentes_familiares": "{\"depresion\":true,\"ansiedad\":true,\"bipolaridad\":false,\"esquizofrenia\":false,\"tdah\":false,\"toc\":false,\"adicciones\":true,\"suicidio\":false,\"otros\":\"Madre con trastorno de ansiedad generalizada\"}",
+  "antecedentes_psicosociales": "Nivel socioeconómico bajo. Educación secundaria completa.",
+  "habitos_personales": "{\"alcohol\":\"Ocasional\",\"alcohol_frecuencia\":\"1-2 veces/semana\",\"tabaco\":\"No\",\"tabaco_frecuencia\":\"\",\"drogas\":\"No\",\"drogas_frecuencia\":\"\",\"sueño_horas\":\"6-7h\",\"sueño_calidad\":\"Regular\",\"alimentacion\":\"Adecuada\",\"ejercicio\":\"No realiza\",\"otros\":\"\"}",
+  "situacion_familiar": "Vive sola con dos hijos menores. Separada hace 1 año.",
+  "situacion_laboral": "Desempleada actualmente. Situación económica precaria.",
+  "evaluacion_inicial": "Paciente presenta estado de ánimo deprimido persistente por más de 6 meses.",
+  "diagnostico_inicial": "Impresión diagnóstica: Episodio Depresivo Mayor Moderado (F32.1)",
+  "tratamientos_previos": "Tratamiento previo con sertralina 50mg por 3 meses."
+}
+```
+
+**Nota**: Los campos `antecedentes_familiares` y `habitos_personales` se almacenan en formato JSON string. El frontend proporciona controles visuales (checkboxes, radios, selects) que automáticamente convierten a/desde JSON.
+
+**Ejemplo Response GET /api/historias/[id]**:
+```json
+{
+  "success": true,
+  "data": {
+    "id_historia": 1,
+    "id_paciente": 4,
+    "paciente_nombre": "María Rosa Sánchez López",
+    "especialista_nombre": "Dra. María Elena González Pérez",
+    "fecha_apertura": "2024-01-15T14:30:00Z",
+    "especialista_apertura": 1,
+    "servicio_origen": "Consulta Externa",
+    "antecedentes_personales": "Sin antecedentes médicos relevantes.",
+    "antecedentes_familiares": "{\"depresion\":true,\"ansiedad\":true,...}",
+    "habitos_personales": "{\"alcohol\":\"Ocasional\",...}",
+    "diagnostico_inicial": "Episodio Depresivo Mayor Moderado (F32.1)",
+    "situacion_historia": "abierta",
+    "fecha_actualizacion": "2024-01-20T10:15:00Z",
+    "especialista_actualizacion": 1
+  }
+}
+```
+
+**Ejemplo Request POST /api/historias/[id]/cerrar**:
+```json
+{
+  "motivo_cierre": "Alta médica por mejoría significativa tras 6 meses de tratamiento"
 }
 ```
 
@@ -800,10 +869,10 @@ Base de datos: **salud_mental_app** (PostgreSQL)
 - id_paciente, dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, fecha_registro, flg_activo
 
 **especialista**
-- id_especialista, dni, nombres, apellidos, especialidad, colegiatura, correo, telefono, cargo, flg_activo
+- id_especialista, dni, nombres, apellidos, especialidad, colegiatura, correo, telefono, cargo, usuario, password_hash, rol, ultimo_acceso, intentos_fallidos, bloqueado_hasta, flg_activo
 
 **historia_clinica**
-- id_historia, id_paciente (FK), fecha_apertura, antecedentes_personales, antecedentes_familiares, tratamientos_previos, situacion_historia
+- id_historia, id_paciente (FK), fecha_apertura, especialista_apertura (FK), servicio_origen, antecedentes_personales, antecedentes_familiares, antecedentes_psicosociales, habitos_personales, situacion_familiar, situacion_laboral, evaluacion_inicial, diagnostico_inicial, tratamientos_previos, situacion_historia, fecha_actualizacion, especialista_actualizacion (FK), fecha_cierre, motivo_cierre
 
 ### Inicializar Base de Datos
 

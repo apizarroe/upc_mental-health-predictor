@@ -8,16 +8,48 @@ Aplicación web SvelteKit que maneja tanto el frontend como el backend CRUD para
 frontend/
 ├── src/
 │   ├── lib/
-│   │   ├── components/     # Componentes Svelte reutilizables
-│   │   ├── stores/         # Estado global (Svelte stores)
-│   │   ├── server/         # Código del servidor (DB, servicios)
-│   │   └── utils/          # Funciones auxiliares
-│   └── routes/             # Páginas y API routes
-│       ├── (app)/          # Rutas autenticadas
-│       ├── api/            # API endpoints
-│       └── auth/           # Autenticación
-├── static/                 # Archivos estáticos
-└── tests/                  # Tests
+│   │   ├── assets/                 # Recursos estáticos (imágenes, iconos)
+│   │   ├── components/             # Componentes Svelte reutilizables
+│   │   │   ├── forms/              # Componentes de formularios
+│   │   │   └── ui/                 # Componentes de interfaz de usuario
+│   │   ├── server/                 # Código del servidor
+│   │   │   ├── db/                 # Configuración de base de datos (PostgreSQL)
+│   │   │   ├── services/           # Lógica de negocio y acceso a datos
+│   │   │   │   ├── pacientes.js
+│   │   │   │   ├── especialistas.js
+│   │   │   │   └── historias.js
+│   │   │   └── validators/         # Validación de datos
+│   │   ├── stores/                 # Estado global (Svelte stores)
+│   │   └── utils/                  # Funciones auxiliares
+│   └── routes/                     # Páginas y API routes (SvelteKit)
+│       ├── (app)/                  # Rutas de la aplicación (layout con sidebar)
+│       │   ├── +page.svelte        # Página de inicio
+│       │   ├── +layout.svelte      # Layout principal con navegación
+│       │   ├── dashboard/          # Dashboard con métricas
+│       │   ├── pacientes/          # Gestión de pacientes
+│       │   │   ├── +page.svelte    # Lista de pacientes
+│       │   │   ├── nuevo/          # Crear nuevo paciente
+│       │   │   └── [id]/           # Detalle y edición de paciente
+│       │   ├── especialistas/      # Gestión de especialistas
+│       │   │   ├── +page.svelte    # Lista de especialistas
+│       │   │   ├── nuevo/          # Crear nuevo especialista
+│       │   │   └── [id]/           # Detalle y edición de especialista
+│       │   └── historias/          # Gestión de historias clínicas
+│       │       ├── +page.svelte    # Lista de historias
+│       │       ├── nuevo/          # Crear nueva historia
+│       │       └── [id]/           # Detalle y edición de historia
+│       ├── login/                  # Página de inicio de sesión
+│       ├── api/                    # API endpoints (backend)
+│       │   ├── auth/               # Autenticación
+│       │   ├── pacientes/          # CRUD de pacientes
+│       │   ├── especialistas/      # CRUD de especialistas
+│       │   └── historias/          # CRUD de historias clínicas
+│       ├── dashboard/              # Proxy para dashboard (redirige a /app/dashboard)
+│       ├── pacientes/              # Proxy para pacientes (redirige a /app/pacientes)
+│       ├── especialistas/          # Proxy para especialistas (redirige a /app/especialistas)
+│       └── predicciones/           # Página de predicciones ML
+├── static/                         # Archivos estáticos públicos
+└── tests/                          # Tests unitarios y de integración
 ```
 
 ## Instalación
