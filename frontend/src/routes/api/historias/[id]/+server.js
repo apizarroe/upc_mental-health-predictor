@@ -59,7 +59,7 @@ export async function PUT({ params, request, cookies }) {
 		const historia = await historiasService.updateHistoria(
 			params.id,
 			validatedData,
-			sessionData.id_especialista
+			sessionData.user_id
 		);
 
 		if (!historia) {

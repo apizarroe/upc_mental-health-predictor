@@ -1,4 +1,5 @@
 import sql from '../db/client.js';
+import bcrypt from 'bcrypt';
 
 /**
  * Servicio para gestionar pacientes en la base de datos
@@ -29,9 +30,17 @@ export async function getPacienteById(id) {
 
 /**
  * Crear un nuevo paciente
- * Setea automáticamente: fecha_registro (NOW) y flg_activo (true)
+ * Setea automáticamente: fecha_registro (NOW), flg_activo (true), rol ('paciente')
+ * Si se proporciona usuario y password, hashea el password
  */
 export async function createPaciente(data) {
+	// Hashear password si se proporciona
+	let passwordHash = null;
+	if (data.password) {
+		const saltRounds = 10;
+		passwordHash = await bcrypt.hash(data.password, saltRounds);
+	}
+
 	const [paciente] = await sql`
 		INSERT INTO paciente (
 			dni,
@@ -44,6 +53,9 @@ export async function createPaciente(data) {
 			correo,
 			contacto_emergencia,
 			telefono_emergencia,
+			usuario,
+			password_hash,
+			rol,
 			fecha_registro,
 			flg_activo
 		) VALUES (
@@ -57,17 +69,24 @@ export async function createPaciente(data) {
 			${data.correo}::varchar,
 			${data.contacto_emergencia}::varchar,
 			${data.telefono_emergencia}::varchar,
+			${data.usuario || null}::varchar,
+			${passwordHash},
+			'paciente',
 			NOW(),
 			true
 		)
 		RETURNING *
 	`;
-	return paciente;
+
+	// No retornar password_hash en el response
+	const { password_hash, ...pacienteSinPassword } = paciente;
+	return pacienteSinPassword;
 }
 
 /**
  * Actualizar un paciente existente
  * Solo actualiza los campos que se envían en data
+ * Nota: NO permite actualizar usuario o rol por seguridad (solo admins pueden)
  */
 export async function updatePaciente(id, data) {
 	// Filtrar solo los campos que están presentes en data
@@ -93,6 +112,12 @@ export async function updatePaciente(id, data) {
 		}
 	}
 
+	// Si se proporciona un nuevo password, hashearlo
+	if (data.password) {
+		const saltRounds = 10;
+		updates.password_hash = await bcrypt.hash(data.password, saltRounds);
+	}
+
 	// Si no hay campos para actualizar, retornar el paciente actual
 	if (Object.keys(updates).length === 0) {
 		return getPacienteById(id);
@@ -105,6 +130,13 @@ export async function updatePaciente(id, data) {
 		WHERE id_paciente = ${id}
 		RETURNING *
 	`;
+
+	// No retornar password_hash en el response
+	if (paciente) {
+		const { password_hash, ...pacienteSinPassword } = paciente;
+		return pacienteSinPassword;
+	}
+
 	return paciente;
 }
 

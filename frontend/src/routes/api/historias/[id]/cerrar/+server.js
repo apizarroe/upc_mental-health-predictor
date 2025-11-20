@@ -20,7 +20,7 @@ export async function POST({ params, request, cookies }) {
 		const historia = await historiasService.cerrarHistoria(
 			params.id,
 			validatedData.motivo_cierre,
-			sessionData.id_especialista
+			sessionData.user_id
 		);
 
 		if (!historia) {

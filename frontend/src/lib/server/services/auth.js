@@ -2,7 +2,7 @@ import sql from '../db/client.js';
 import bcrypt from 'bcrypt';
 
 /**
- * Servicio de autenticación
+ * Servicio de autenticación unificado para Especialistas y Pacientes
  */
 
 /**
@@ -16,10 +16,12 @@ function estaBloqueo(bloqueado_hasta) {
 /**
  * Bloquear usuario por 15 minutos
  */
-async function bloquearUsuario(usuario) {
+async function bloquearUsuario(usuario, userType) {
 	const bloqueadoHasta = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+	const tabla = userType === 'especialista' ? 'especialista' : 'paciente';
+
 	await sql`
-		UPDATE especialista
+		UPDATE ${sql(tabla)}
 		SET bloqueado_hasta = ${bloqueadoHasta}
 		WHERE usuario = ${usuario}
 	`;
@@ -28,28 +30,35 @@ async function bloquearUsuario(usuario) {
 /**
  * Incrementar contador de intentos fallidos
  */
-async function incrementarIntentosFallidos(usuario) {
-	const [especialista] = await sql`
-		UPDATE especialista
+async function incrementarIntentosFallidos(usuario, userType) {
+	const tabla = userType === 'especialista' ? 'especialista' : 'paciente';
+	const idField = userType === 'especialista' ? 'id_especialista' : 'id_paciente';
+
+	const result = await sql`
+		UPDATE ${sql(tabla)}
 		SET intentos_fallidos = intentos_fallidos + 1
 		WHERE usuario = ${usuario}
 		RETURNING intentos_fallidos
 	`;
 
+	const user = result[0];
+
 	// Si llega a 5 intentos, bloquear cuenta
-	if (especialista.intentos_fallidos >= 5) {
-		await bloquearUsuario(usuario);
+	if (user && user.intentos_fallidos >= 5) {
+		await bloquearUsuario(usuario, userType);
 	}
 
-	return especialista.intentos_fallidos;
+	return user ? user.intentos_fallidos : 0;
 }
 
 /**
  * Resetear intentos fallidos y desbloquear
  */
-async function resetearIntentosFallidos(usuario) {
+async function resetearIntentosFallidos(usuario, userType) {
+	const tabla = userType === 'especialista' ? 'especialista' : 'paciente';
+
 	await sql`
-		UPDATE especialista
+		UPDATE ${sql(tabla)}
 		SET intentos_fallidos = 0,
 		    bloqueado_hasta = NULL,
 		    ultimo_acceso = NOW()
@@ -58,16 +67,27 @@ async function resetearIntentosFallidos(usuario) {
 }
 
 /**
- * Login: Validar credenciales y retornar datos del usuario
+ * Login unificado: Busca en ambas tablas (especialista y paciente)
+ * y retorna datos del usuario con user_type
  */
 export async function login(usuario, password) {
-	// Buscar usuario
+	// Primero intentar buscar en tabla especialista
 	const [especialista] = await sql`
 		SELECT * FROM especialista
 		WHERE usuario = ${usuario}
 	`;
 
-	if (!especialista) {
+	// Si no se encuentra, buscar en tabla paciente
+	const [paciente] = !especialista ? await sql`
+		SELECT * FROM paciente
+		WHERE usuario = ${usuario}
+	` : [null];
+
+	// Determinar cuál tabla tiene el usuario
+	const user = especialista || paciente;
+	const userType = especialista ? 'especialista' : (paciente ? 'paciente' : null);
+
+	if (!user) {
 		return {
 			success: false,
 			error: 'Usuario o contraseña incorrectos'
@@ -75,7 +95,7 @@ export async function login(usuario, password) {
 	}
 
 	// Verificar si está activo
-	if (!especialista.flg_activo) {
+	if (!user.flg_activo) {
 		return {
 			success: false,
 			error: 'Cuenta desactivada. Contacte al administrador'
@@ -83,7 +103,7 @@ export async function login(usuario, password) {
 	}
 
 	// Verificar si está bloqueado
-	if (estaBloqueo(especialista.bloqueado_hasta)) {
+	if (estaBloqueo(user.bloqueado_hasta)) {
 		return {
 			success: false,
 			error: 'Cuenta bloqueada temporalmente. Intente en 15 minutos'
@@ -91,11 +111,11 @@ export async function login(usuario, password) {
 	}
 
 	// Verificar contraseña
-	const passwordValida = await bcrypt.compare(password, especialista.password_hash);
+	const passwordValida = await bcrypt.compare(password, user.password_hash);
 
 	if (!passwordValida) {
 		// Incrementar intentos fallidos
-		const intentos = await incrementarIntentosFallidos(usuario);
+		const intentos = await incrementarIntentosFallidos(usuario, userType);
 		const intentosRestantes = 5 - intentos;
 
 		if (intentosRestantes <= 0) {
@@ -112,25 +132,43 @@ export async function login(usuario, password) {
 	}
 
 	// Login exitoso: resetear intentos y actualizar último acceso
-	await resetearIntentosFallidos(usuario);
+	await resetearIntentosFallidos(usuario, userType);
 
-	// Retornar datos del usuario (sin password_hash)
-	return {
-		success: true,
-		user: {
-			id_especialista: especialista.id_especialista,
-			dni: especialista.dni,
-			nombres: especialista.nombres,
-			apellidos: especialista.apellidos,
-			correo: especialista.correo,
-			rol: especialista.rol,
-			usuario: especialista.usuario
-		}
-	};
+	// Retornar datos del usuario según el tipo
+	if (userType === 'especialista') {
+		return {
+			success: true,
+			user: {
+				user_id: user.id_especialista,
+				user_type: 'especialista',
+				dni: user.dni,
+				nombres: user.nombres,
+				apellidos: user.apellidos,
+				correo: user.correo,
+				rol: user.rol,
+				usuario: user.usuario
+			}
+		};
+	} else {
+		// Paciente
+		return {
+			success: true,
+			user: {
+				user_id: user.id_paciente,
+				user_type: 'paciente',
+				dni: user.dni,
+				nombres: user.nombres,
+				apellidos: user.apellidos,
+				correo: user.correo,
+				rol: user.rol || 'paciente',
+				usuario: user.usuario
+			}
+		};
+	}
 }
 
 /**
- * Obtener usuario por ID para verificar sesión
+ * Obtener especialista por ID para verificar sesión
  */
 export async function getEspecialistaByIdForAuth(id) {
 	const [especialista] = await sql`
@@ -151,20 +189,70 @@ export async function getEspecialistaByIdForAuth(id) {
 		return null;
 	}
 
-	return especialista;
+	return {
+		...especialista,
+		user_id: especialista.id_especialista,
+		user_type: 'especialista'
+	};
 }
 
 /**
- * Cambiar contraseña
+ * Obtener paciente por ID para verificar sesión
  */
-export async function cambiarPassword(id_especialista, passwordActual, passwordNueva) {
-	// Obtener usuario con password_hash
-	const [especialista] = await sql`
-		SELECT password_hash FROM especialista
-		WHERE id_especialista = ${id_especialista}
+export async function getPacienteByIdForAuth(id) {
+	const [paciente] = await sql`
+		SELECT
+			id_paciente,
+			dni,
+			nombres,
+			apellidos,
+			correo,
+			rol,
+			usuario,
+			flg_activo
+		FROM paciente
+		WHERE id_paciente = ${id}
 	`;
 
-	if (!especialista) {
+	if (!paciente || !paciente.flg_activo) {
+		return null;
+	}
+
+	return {
+		...paciente,
+		user_id: paciente.id_paciente,
+		user_type: 'paciente'
+	};
+}
+
+/**
+ * Obtener usuario por ID y tipo (unificado para session validation)
+ */
+export async function getUserByIdForAuth(userId, userType) {
+	if (userType === 'especialista') {
+		return await getEspecialistaByIdForAuth(userId);
+	} else if (userType === 'paciente') {
+		return await getPacienteByIdForAuth(userId);
+	}
+	return null;
+}
+
+/**
+ * Cambiar contraseña (funciona para especialistas y pacientes)
+ */
+export async function cambiarPassword(userId, userType, passwordActual, passwordNueva) {
+	const tabla = userType === 'especialista' ? 'especialista' : 'paciente';
+	const idField = userType === 'especialista' ? 'id_especialista' : 'id_paciente';
+
+	// Obtener usuario con password_hash
+	const result = await sql`
+		SELECT password_hash FROM ${sql(tabla)}
+		WHERE ${sql(idField)} = ${userId}
+	`;
+
+	const user = result[0];
+
+	if (!user) {
 		return {
 			success: false,
 			error: 'Usuario no encontrado'
@@ -172,7 +260,7 @@ export async function cambiarPassword(id_especialista, passwordActual, passwordN
 	}
 
 	// Verificar contraseña actual
-	const passwordValida = await bcrypt.compare(passwordActual, especialista.password_hash);
+	const passwordValida = await bcrypt.compare(passwordActual, user.password_hash);
 
 	if (!passwordValida) {
 		return {
@@ -187,9 +275,9 @@ export async function cambiarPassword(id_especialista, passwordActual, passwordN
 
 	// Actualizar contraseña
 	await sql`
-		UPDATE especialista
+		UPDATE ${sql(tabla)}
 		SET password_hash = ${nuevoHash}
-		WHERE id_especialista = ${id_especialista}
+		WHERE ${sql(idField)} = ${userId}
 	`;
 
 	return {

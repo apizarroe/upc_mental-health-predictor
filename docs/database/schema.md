@@ -5,7 +5,7 @@ Este documento describe el esquema de la base de datos para el sistema de predic
 ## Tablas
 
 ### paciente
-Información de los pacientes del centro de atención psicológica.
+Información de los pacientes del centro de atención psicológica con acceso al sistema.
 
 | Campo                | Tipo         | Restricciones | Descripción                               |
 |---------------------|--------------|---------------|-------------------------------------------|
@@ -20,14 +20,22 @@ Información de los pacientes del centro de atención psicológica.
 | correo              | VARCHAR(50)  |               | Email del paciente                        |
 | contacto_emergencia | VARCHAR(150) |               | Nombre de contacto de emergencia          |
 | telefono_emergencia | VARCHAR(20)  |               | Teléfono de emergencia                    |
-| fecha_registro      | TIMESTAMP    |               | Fecha de registro en el sistema           |
-| flg_activo          | BOOLEAN      |               | Estado activo/inactivo del paciente       |
+| usuario             | VARCHAR(50)  | UNIQUE        | Nombre de usuario para login (único)      |
+| password_hash       | VARCHAR(255) |               | Contraseña hasheada (bcrypt)              |
+| rol                 | VARCHAR(20)  | DEFAULT 'paciente' | Rol fijo: 'paciente'                 |
+| ultimo_acceso       | TIMESTAMP    |               | Fecha y hora del último inicio de sesión  |
+| intentos_fallidos   | INT          | DEFAULT 0     | Contador de intentos fallidos de login    |
+| bloqueado_hasta     | TIMESTAMP    |               | Fecha hasta la cual está bloqueada la cuenta |
+| fecha_registro      | TIMESTAMP    | DEFAULT NOW   | Fecha de registro en el sistema           |
+| flg_activo          | BOOLEAN      | DEFAULT true  | Estado activo/inactivo del paciente       |
 
 **Índices sugeridos:**
 ```sql
 CREATE INDEX idx_paciente_dni ON paciente(dni);
 CREATE INDEX idx_paciente_nombres ON paciente(nombres, apellidos);
 CREATE INDEX idx_paciente_activo ON paciente(flg_activo);
+CREATE UNIQUE INDEX idx_paciente_usuario ON paciente(usuario);
+CREATE INDEX idx_paciente_rol ON paciente(rol);
 ```
 
 ### especialista
@@ -122,6 +130,26 @@ Registro de medicaciones que el paciente ya tomaba al momento de la apertura de 
 CREATE INDEX idx_medicacion_historia ON paciente_medicacion(id_historia);
 ```
 
+### notas
+Notas diarias del paciente sobre su estado emocional, actividades y situaciones. Los pacientes registran estas notas directamente en el sistema y los especialistas pueden leerlas.
+
+| Campo              | Tipo         | Restricciones | Descripción                                          |
+|--------------------|--------------|---------------|------------------------------------------------------|
+| id_nota            | BIGSERIAL    | PRIMARY KEY   | Identificador único de la nota                       |
+| id_paciente        | BIGINT       | FOREIGN KEY   | Referencia a paciente(id_paciente)                   |
+| pregunta           | VARCHAR(255) | NOT NULL      | Pregunta que se respondió                            |
+| respuesta          | TEXT         | NOT NULL      | Respuesta del paciente                               |
+| fecha_registro     | TIMESTAMP    | DEFAULT NOW   | Fecha y hora de creación de la nota                  |
+
+**Relaciones:**
+- **FK**: `id_paciente` → `paciente(id_paciente)`
+
+**Índices:**
+```sql
+CREATE INDEX idx_notas_paciente ON notas(id_paciente);
+CREATE INDEX idx_notas_fecha ON notas(fecha_registro);
+```
+
 ## Script SQL Completo
 
 ```sql
@@ -138,6 +166,12 @@ CREATE TABLE "paciente" (
   "correo" VARCHAR(50),
   "contacto_emergencia" VARCHAR(150),
   "telefono_emergencia" VARCHAR(20),
+  "usuario" VARCHAR(50) UNIQUE,
+  "password_hash" VARCHAR(255),
+  "rol" VARCHAR(20) DEFAULT 'paciente',
+  "ultimo_acceso" TIMESTAMP,
+  "intentos_fallidos" INT DEFAULT 0,
+  "bloqueado_hasta" TIMESTAMP,
   "fecha_registro" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
   "flg_activo" BOOLEAN DEFAULT true
 );
@@ -198,6 +232,14 @@ CREATE TABLE "paciente_medicacion" (
   "fecha_registro" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP)
 );
 
+CREATE TABLE "notas" (
+  "id_nota" BIGSERIAL PRIMARY KEY,
+  "id_paciente" BIGINT NOT NULL,
+  "pregunta" VARCHAR(255) NOT NULL,
+  "respuesta" TEXT NOT NULL,
+  "fecha_registro" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP)
+);
+
 -- Foreign Key historia_clinica
 ALTER TABLE "historia_clinica"
   ADD CONSTRAINT "fk_historia_paciente"
@@ -220,9 +262,17 @@ ALTER TABLE "paciente_medicacion"
   FOREIGN KEY ("id_historia")
   REFERENCES "historia_clinica" ("id_historia");
 
+-- Foreign Key notas
+ALTER TABLE "notas"
+  ADD CONSTRAINT "fk_notas_paciente"
+  FOREIGN KEY ("id_paciente")
+  REFERENCES "paciente" ("id_paciente");
+
 -- Índices paciente
 CREATE INDEX idx_paciente_dni ON paciente(dni);
 CREATE INDEX idx_paciente_activo ON paciente(flg_activo);
+CREATE UNIQUE INDEX idx_paciente_usuario ON paciente(usuario);
+CREATE INDEX idx_paciente_rol ON paciente(rol);
 
 -- Índices especialista
 CREATE INDEX idx_especialista_dni ON especialista(dni);
@@ -235,36 +285,61 @@ CREATE INDEX idx_historia_paciente ON historia_clinica(id_paciente);
 
 -- Índices paciente_medicacion
 CREATE INDEX idx_medicacion_historia ON paciente_medicacion (id_historia);
+
+-- Índices notas
+CREATE INDEX idx_notas_paciente ON notas(id_paciente);
+CREATE INDEX idx_notas_fecha ON notas(fecha_registro);
 ```
 
 ## Sistema de Autenticación y Roles
 
 ### Roles disponibles:
-- **admin**: Acceso total al sistema, gestión de usuarios y configuración
-- **coordinador**: Acceso a reportes, supervisión de casos, asignación de pacientes
-- **especialista**: Acceso a sus pacientes asignados, creación de historias clínicas
+- **admin**: Acceso total al sistema, gestión de usuarios y configuración (especialista)
+- **especialista**: Acceso a sus pacientes asignados, creación de historias clínicas (especialista)
+- **paciente**: Acceso limitado a su propia información, historial y predicciones (paciente)
 
-### Campos de autenticación en tabla especialista:
+### Campos de autenticación:
+
+**En tabla especialista:**
 - `usuario`: Nombre único para login (ej: "mgonzalez")
 - `password_hash`: Hash bcrypt de la contraseña (nunca almacenar en texto plano)
-- `rol`: Define nivel de acceso y permisos
+- `rol`: Define nivel de acceso - valores: 'admin', 'especialista'
 - `ultimo_acceso`: Auditoría de sesiones
 - `intentos_fallidos`: Seguridad contra fuerza bruta
 - `bloqueado_hasta`: Bloqueo temporal tras múltiples intentos fallidos
 
-### Flujo de autenticación:
+**En tabla paciente:**
+- `usuario`: Nombre único para login (ej: "jperez")
+- `password_hash`: Hash bcrypt de la contraseña
+- `rol`: Siempre 'paciente' (valor fijo)
+- `ultimo_acceso`: Auditoría de sesiones
+- `intentos_fallidos`: Seguridad contra fuerza bruta
+- `bloqueado_hasta`: Bloqueo temporal tras múltiples intentos fallidos
+
+### Flujo de autenticación unificado:
 1. Usuario ingresa credenciales (usuario + contraseña)
-2. Sistema busca usuario en tabla especialista
+2. Sistema busca usuario en **ambas tablas** (especialista y paciente)
 3. Valida contraseña usando bcrypt.compare()
 4. Verifica que cuenta esté activa (flg_activo = true)
 5. Verifica que no esté bloqueada (bloqueado_hasta)
 6. Actualiza ultimo_acceso y resetea intentos_fallidos
-7. Crea sesión con datos del usuario y rol
+7. Crea sesión con datos del usuario, rol, y tipo (especialista/paciente)
+
+### Diferenciación de acceso por rol:
+- **Especialistas (admin/especialista)**: Acceso al panel de administración, gestión de pacientes, historias clínicas
+- **Pacientes**: Acceso solo a:
+  - Su propia historia clínica (solo lectura)
+  - Sus propias sesiones y notas
+  - Resultados de predicciones de ML sobre sus notas
+  - Actualización de sus datos personales (dirección, teléfono, contacto de emergencia)
 
 ### Políticas de seguridad:
 - Bloquear cuenta por 15 minutos tras 5 intentos fallidos de login
 - Expirar sesiones después de 30 minutos de inactividad
 - Requerir contraseñas con mínimo 8 caracteres, mayúsculas, minúsculas y números
+- Los pacientes NO pueden ver información de otros pacientes
+- Los pacientes NO pueden crear o editar historias clínicas
+- Los especialistas solo pueden ver pacientes asignados a ellos (a menos que sean admin)
 
 ## Consideraciones de Seguridad
 
@@ -308,9 +383,14 @@ VALUES
 $2b$10$rZ9pJKxL8YQ4K5J9m8X9Ye9vT8K9m8X9Ye9vT8K9m8X9Ye9vT8K9m
 */
 /*
-Credenciales de acceso para pruebas:
+Credenciales de acceso para pruebas (ESPECIALISTAS):
 - Usuario: mgonzalez | Contraseña: Admin123! | Rol: admin
 - Usuario: cramirez  | Contraseña: Pass123!  | Rol: especialista
+
+Credenciales de acceso para pruebas (PACIENTES):
+- Usuario: jperez    | Contraseña: Pass1234! | Rol: paciente
+- Usuario: atorres   | Contraseña: Pass123! | Rol: paciente
+- Usuario: lmartinez | Contraseña: Pass123! | Rol: paciente
 
 Nota: Los password_hash son ejemplos ficticios. En producción, generar hashes reales usando bcrypt.
 Para generar un hash real en Node.js:
@@ -318,11 +398,11 @@ Para generar un hash real en Node.js:
   const hash = await bcrypt.hash('tuContraseña', 10);
 */
 
-INSERT INTO paciente (dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia)
+INSERT INTO paciente (dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, usuario, password_hash, rol)
 VALUES
-('87654321', 'Juan', 'Pérez López', '1990-05-15', 'M', 'Av. Principal 123', '912345678', 'jperez@email.com', 'María Pérez', '923456789'),
-('98765432', 'Ana', 'Torres Mendoza', '1985-08-20', 'F', 'Jr. Los Olivos 456', '923456789', 'atorres@email.com', 'Pedro Torres', '934567890'),
-('45678912', 'Luis', 'Martínez Silva', '1992-03-10', 'M', 'Calle Las Flores 789', '934567891', 'lmartinez@email.com', 'Rosa Martínez', '945678901');
+('87654321', 'Juan', 'Pérez López', '1990-05-15', 'M', 'Av. Principal 123', '912345678', 'jperez@email.com', 'María Pérez', '923456789', 'jperez', '$2b$10$bPPc3azVhcS/usAw7W0BC.TWgLxIfkm2Txmx3ZXvyfT43lNvxOQVi', 'paciente'),
+('98765432', 'Ana', 'Torres Mendoza', '1985-08-20', 'F', 'Jr. Los Olivos 456', '923456789', 'atorres@email.com', 'Pedro Torres', '934567890', 'atorres', '$2a$10$7H9dY06fzkEAbeffjDMj1O3NeeB7.XWufcSInLeIEAap0cWHAfZoG', 'paciente'),
+('45678912', 'Luis', 'Martínez Silva', '1992-03-10', 'M', 'Calle Las Flores 789', '934567891', 'lmartinez@email.com', 'Rosa Martínez', '945678901', 'lmartinez', '$2a$10$7H9dY06fzkEAbeffjDMj1O3NeeB7.XWufcSInLeIEAap0cWHAfZoG', 'paciente');
 
 INSERT INTO historia_clinica (
     id_paciente,

@@ -28,8 +28,10 @@ export async function POST({ request, cookies }) {
 
 		// Login exitoso: crear sesión con cookie
 		// La cookie expira en 30 minutos (política de seguridad)
+		// Ahora soporta tanto especialistas como pacientes
 		const sessionData = {
-			id_especialista: result.user.id_especialista,
+			user_id: result.user.user_id,
+			user_type: result.user.user_type,
 			usuario: result.user.usuario,
 			rol: result.user.rol,
 			loginTime: Date.now()

@@ -25,7 +25,7 @@ export async function POST({ request, cookies }) {
 		const sessionData = JSON.parse(sessionCookie);
 
 		// Agregar el especialista de la sesión (convertir a número)
-		body.especialista_apertura = Number(sessionData.id_especialista);
+		body.especialista_apertura = Number(sessionData.user_id);
 
 		// Convertir id_paciente a número si viene como string
 		if (body.id_paciente) {

@@ -39,7 +39,11 @@ export async function GET({ cookies }) {
 		}
 
 		// Verificar que el usuario sigue activo en la base de datos
-		const user = await authService.getEspecialistaByIdForAuth(sessionData.id_especialista);
+		// Ahora soporta tanto especialistas como pacientes
+		const user = await authService.getUserByIdForAuth(
+			sessionData.user_id,
+			sessionData.user_type
+		);
 
 		if (!user) {
 			cookies.delete('session', { path: '/' });

@@ -5,7 +5,8 @@
 
 export const ROLES = {
 	ADMIN: 'admin',
-	ESPECIALISTA: 'especialista'
+	ESPECIALISTA: 'especialista',
+	PACIENTE: 'paciente'
 };
 
 export const PERMISSIONS = {
@@ -25,7 +26,13 @@ export const PERMISSIONS = {
 	HISTORIAS_READ: 'historias:read',
 	HISTORIAS_CREATE: 'historias:create',
 	HISTORIAS_UPDATE: 'historias:update',
-	HISTORIAS_DELETE: 'historias:delete'
+	HISTORIAS_DELETE: 'historias:delete',
+
+	// Permisos de Notas
+	NOTAS_READ: 'notas:read',
+	NOTAS_CREATE: 'notas:create',
+	NOTAS_UPDATE: 'notas:update',
+	NOTAS_DELETE: 'notas:delete'
 };
 
 // Mapeo de permisos por rol
@@ -43,7 +50,8 @@ const rolePermissions = {
 		PERMISSIONS.HISTORIAS_READ,
 		PERMISSIONS.HISTORIAS_CREATE,
 		PERMISSIONS.HISTORIAS_UPDATE,
-		PERMISSIONS.HISTORIAS_DELETE
+		PERMISSIONS.HISTORIAS_DELETE,
+		PERMISSIONS.NOTAS_READ
 	],
 	[ROLES.ESPECIALISTA]: [
 		// Especialista solo puede ver pacientes
@@ -56,7 +64,15 @@ const rolePermissions = {
 		PERMISSIONS.HISTORIAS_READ,
 		PERMISSIONS.HISTORIAS_CREATE,
 		PERMISSIONS.HISTORIAS_UPDATE,
-		PERMISSIONS.HISTORIAS_DELETE
+		PERMISSIONS.HISTORIAS_DELETE,
+
+		// Especialista puede leer notas de pacientes
+		PERMISSIONS.NOTAS_READ
+	],
+	[ROLES.PACIENTE]: [
+		// Pacientes pueden crear y leer sus propias notas
+		PERMISSIONS.NOTAS_CREATE,
+		PERMISSIONS.NOTAS_READ
 	]
 };
 
@@ -178,4 +194,67 @@ export function canUpdateHistorias(userRole) {
  */
 export function canDeleteHistorias(userRole) {
 	return hasPermission(userRole, PERMISSIONS.HISTORIAS_DELETE);
+}
+
+/**
+ * Verifica si un usuario es paciente
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function isPaciente(userRole) {
+	return userRole === ROLES.PACIENTE;
+}
+
+/**
+ * Verifica si un usuario es especialista (admin o especialista)
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function isEspecialista(userRole) {
+	return (
+		userRole === ROLES.ADMIN ||
+		userRole === ROLES.ESPECIALISTA
+	);
+}
+
+/**
+ * Verifica si un usuario puede leer notas
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function canReadNotas(userRole) {
+	return hasPermission(userRole, PERMISSIONS.NOTAS_READ);
+}
+
+/**
+ * Verifica si un usuario puede crear notas
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function canCreateNotas(userRole) {
+	return hasPermission(userRole, PERMISSIONS.NOTAS_CREATE);
+}
+
+/**
+ * Verifica si un usuario puede acceder a datos específicos
+ * Los pacientes solo pueden acceder a sus propios datos
+ * Los especialistas pueden acceder a cualquier dato
+ * @param {object} user - Usuario actual con { user_id, user_type, rol }
+ * @param {number} resourceOwnerId - ID del propietario del recurso
+ * @returns {boolean}
+ */
+export function canAccessOwnData(user, resourceOwnerId) {
+	if (!user) return false;
+
+	// Especialistas pueden acceder a cualquier dato
+	if (isEspecialista(user.rol)) {
+		return true;
+	}
+
+	// Pacientes solo pueden acceder a sus propios datos
+	if (isPaciente(user.rol)) {
+		return +user.user_id === resourceOwnerId;
+	}
+
+	return false;
 }
