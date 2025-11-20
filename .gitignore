@@ -51,11 +51,13 @@ backend/data/trained_models/*.h5
 backend/data/trained_models/*.pt
 
 # Datasets (pueden ser grandes)
-backend/data/datasets/*.csv
-backend/data/datasets/*.json
-backend/data/datasets/*.parquet
 *.csv
 *.xlsx
+backend/data/datasets/*.json
+backend/data/datasets/*.parquet
+# Excepciones: archivos específicos que no se ignoran
+!backend/data/datasets/train-00000-of-00001.parquet
+!backend/data/datasets/example_patient_messages.csv
 
 # Base de datos
 *.db
