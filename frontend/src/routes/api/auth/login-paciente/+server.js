@@ -35,7 +35,8 @@ export async function POST({ request, cookies }) {
 			id_paciente: result.user.id_paciente,
 			dni: result.user.dni,
 			tipo_usuario: 'paciente',
-			loginTime: Date.now()
+			loginTime: Date.now(),
+			requiere_cambio_password: result.requiere_cambio_password || false
 		};
 
 		cookies.set('session-paciente', JSON.stringify(sessionData), {
@@ -49,6 +50,7 @@ export async function POST({ request, cookies }) {
 		return json({
 			success: true,
 			user: result.user,
+			requiere_cambio_password: result.requiere_cambio_password || false,
 			message: 'Inicio de sesión exitoso'
 		});
 	} catch (error) {

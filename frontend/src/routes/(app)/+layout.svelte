@@ -4,12 +4,19 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { canAccessPacientes, canAccessEspecialistas, canAccessHistorias } from '$lib/utils/permissions.js';
+	import CambioPasswordObligatorio from '$lib/components/modals/CambioPasswordObligatorio.svelte';
 
 	let { data, children } = $props();
 	let sidebarOpen = $state(true);
 	let userMenuOpen = $state(false);
 
 	let user = $derived(data.user);
+	let requiereCambioPassword = $derived(data.requiere_cambio_password);
+
+	async function handlePasswordChanged() {
+		// Recargar la página para actualizar el flag en la sesión
+		window.location.reload();
+	}
 
 	const allNavigation = [
 		{ name: 'Inicio', href: '/inicio', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', requiresPermission: null },
@@ -233,3 +240,12 @@
 		{@render children()}
 	</main>
 </div>
+
+<!-- Modal de cambio de contraseña obligatorio -->
+{#if requiereCambioPassword}
+	<CambioPasswordObligatorio
+		nombreUsuario="{user.nombres} {user.apellidos}"
+		tipoUsuario="especialista"
+		on:success={handlePasswordChanged}
+	/>
+{/if}

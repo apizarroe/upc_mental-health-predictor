@@ -1,4 +1,5 @@
 import sql from '../db/client.js';
+import bcrypt from 'bcrypt';
 
 /**
  * Servicio para gestionar pacientes en la base de datos
@@ -41,9 +42,17 @@ export async function getPacienteById(id) {
 
 /**
  * Crear un nuevo paciente
- * Setea automáticamente: fecha_registro (NOW) y flg_activo (true)
+ * Setea automáticamente:
+ * - fecha_registro (NOW)
+ * - flg_activo (true)
+ * - password_hash (DNI hasheado con bcrypt)
+ * - password_cambiado_en (NULL - para forzar cambio en primer login)
  */
 export async function createPaciente(data) {
+	// Hashear el DNI como contraseña por defecto
+	const saltRounds = 10;
+	const passwordHash = await bcrypt.hash(data.dni, saltRounds);
+
 	const [paciente] = await sql`
 		INSERT INTO paciente (
 			dni,
@@ -56,6 +65,7 @@ export async function createPaciente(data) {
 			correo,
 			contacto_emergencia,
 			telefono_emergencia,
+			password_hash,
 			fecha_registro,
 			flg_activo
 		) VALUES (
@@ -69,6 +79,7 @@ export async function createPaciente(data) {
 			${data.correo}::varchar,
 			${data.contacto_emergencia}::varchar,
 			${data.telefono_emergencia}::varchar,
+			${passwordHash}::varchar,
 			NOW(),
 			true
 		)

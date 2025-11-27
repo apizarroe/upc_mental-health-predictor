@@ -47,7 +47,8 @@ export async function load({ cookies }) {
 
 		// Pasar datos del usuario a todas las páginas protegidas
 		return {
-			user: user
+			user: user,
+			requiere_cambio_password: sessionData.requiere_cambio_password || false
 		};
 	} catch (error) {
 		// Si hay error parseando la sesión, eliminar cookie y redirigir

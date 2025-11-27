@@ -60,6 +60,7 @@ export async function load({ cookies }) {
 		user: {
 			...paciente,
 			tipo_usuario: 'paciente'
-		}
+		},
+		requiere_cambio_password: sessionData.requiere_cambio_password || false
 	};
 }

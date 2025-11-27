@@ -114,9 +114,13 @@ export async function login(usuario, password) {
 	// Login exitoso: resetear intentos y actualizar último acceso
 	await resetearIntentosFallidos(usuario);
 
+	// Verificar si es primer login (password_cambiado_en es NULL)
+	const esPrimerLogin = especialista.password_cambiado_en === null;
+
 	// Retornar datos del usuario (sin password_hash)
 	return {
 		success: true,
+		requiere_cambio_password: esPrimerLogin,
 		user: {
 			id_especialista: especialista.id_especialista,
 			dni: especialista.dni,
@@ -185,10 +189,54 @@ export async function cambiarPassword(id_especialista, passwordActual, passwordN
 	const saltRounds = 10;
 	const nuevoHash = await bcrypt.hash(passwordNueva, saltRounds);
 
-	// Actualizar contraseña
+	// Actualizar contraseña y registrar fecha de cambio
 	await sql`
 		UPDATE especialista
-		SET password_hash = ${nuevoHash}
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NOW()
+		WHERE id_especialista = ${id_especialista}
+	`;
+
+	return {
+		success: true,
+		message: 'Contraseña actualizada correctamente'
+	};
+}
+
+/**
+ * Cambiar contraseña en primer login (sin validar contraseña actual)
+ */
+export async function cambiarPasswordPrimerLogin(id_especialista, passwordNueva) {
+	// Verificar que el usuario realmente esté en primer login
+	const [especialista] = await sql`
+		SELECT password_cambiado_en FROM especialista
+		WHERE id_especialista = ${id_especialista}
+	`;
+
+	if (!especialista) {
+		return {
+			success: false,
+			error: 'Usuario no encontrado'
+		};
+	}
+
+	// Solo permitir si password_cambiado_en es NULL (primer login)
+	if (especialista.password_cambiado_en !== null) {
+		return {
+			success: false,
+			error: 'Esta funcionalidad solo está disponible en el primer inicio de sesión'
+		};
+	}
+
+	// Hashear nueva contraseña
+	const saltRounds = 10;
+	const nuevoHash = await bcrypt.hash(passwordNueva, saltRounds);
+
+	// Actualizar contraseña y registrar fecha de cambio
+	await sql`
+		UPDATE especialista
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NOW()
 		WHERE id_especialista = ${id_especialista}
 	`;
 

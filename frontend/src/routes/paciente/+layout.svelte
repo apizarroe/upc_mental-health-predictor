@@ -1,9 +1,16 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import CambioPasswordObligatorio from '$lib/components/modals/CambioPasswordObligatorio.svelte';
 
 	let { data, children } = $props();
 	let user = $derived(data.user);
+	let requiereCambioPassword = $derived(data.requiere_cambio_password);
+
+	async function handlePasswordChanged() {
+		// Recargar la página para actualizar el flag en la sesión
+		window.location.reload();
+	}
 
 	const navigation = [
 		{
@@ -117,3 +124,12 @@
 		{@render children()}
 	</main>
 </div>
+
+<!-- Modal de cambio de contraseña obligatorio -->
+{#if requiereCambioPassword}
+	<CambioPasswordObligatorio
+		nombreUsuario="{user.nombres} {user.apellidos}"
+		tipoUsuario="paciente"
+		on:success={handlePasswordChanged}
+	/>
+{/if}

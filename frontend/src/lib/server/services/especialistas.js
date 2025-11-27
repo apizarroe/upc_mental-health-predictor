@@ -1,4 +1,5 @@
 import sql from '../db/client.js';
+import bcrypt from 'bcrypt';
 
 /**
  * Servicio para gestionar especialistas en la base de datos
@@ -29,9 +30,16 @@ export async function getEspecialistaById(id) {
 
 /**
  * Crear un nuevo especialista
- * Setea automáticamente: flg_activo (true)
+ * Setea automáticamente:
+ * - flg_activo (true)
+ * - password_hash (DNI hasheado con bcrypt)
+ * - password_cambiado_en (NULL - para forzar cambio en primer login)
  */
 export async function createEspecialista(data) {
+	// Hashear el DNI como contraseña por defecto
+	const saltRounds = 10;
+	const passwordHash = await bcrypt.hash(data.dni, saltRounds);
+
 	const [especialista] = await sql`
 		INSERT INTO especialista (
 			dni,
@@ -42,6 +50,7 @@ export async function createEspecialista(data) {
 			correo,
 			telefono,
 			cargo,
+			password_hash,
 			flg_activo
 		) VALUES (
 			${data.dni}::varchar,
@@ -52,6 +61,7 @@ export async function createEspecialista(data) {
 			${data.correo}::varchar,
 			${data.telefono}::varchar,
 			${data.cargo}::varchar,
+			${passwordHash}::varchar,
 			true
 		)
 		RETURNING *

@@ -115,9 +115,13 @@ export async function loginPaciente(dni, password) {
 	// Login exitoso: resetear intentos y actualizar último acceso
 	await resetearIntentosFallidos(dni);
 
+	// Verificar si es primer login (password_cambiado_en es NULL)
+	const esPrimerLogin = paciente.password_cambiado_en === null;
+
 	// Retornar datos del paciente (sin password_hash)
 	return {
 		success: true,
+		requiere_cambio_password: esPrimerLogin,
 		user: {
 			id_paciente: paciente.id_paciente,
 			dni: paciente.dni,
@@ -192,10 +196,54 @@ export async function cambiarPasswordPaciente(id_paciente, passwordActual, passw
 	const saltRounds = 10;
 	const nuevoHash = await bcrypt.hash(passwordNueva, saltRounds);
 
-	// Actualizar contraseña
+	// Actualizar contraseña y registrar fecha de cambio
 	await sql`
 		UPDATE paciente
-		SET password_hash = ${nuevoHash}
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NOW()
+		WHERE id_paciente = ${id_paciente}
+	`;
+
+	return {
+		success: true,
+		message: 'Contraseña actualizada correctamente'
+	};
+}
+
+/**
+ * Cambiar contraseña de paciente en primer login (sin validar contraseña actual)
+ */
+export async function cambiarPasswordPacientePrimerLogin(id_paciente, passwordNueva) {
+	// Verificar que el paciente realmente esté en primer login
+	const [paciente] = await sql`
+		SELECT password_cambiado_en FROM paciente
+		WHERE id_paciente = ${id_paciente}
+	`;
+
+	if (!paciente) {
+		return {
+			success: false,
+			error: 'Paciente no encontrado'
+		};
+	}
+
+	// Solo permitir si password_cambiado_en es NULL (primer login)
+	if (paciente.password_cambiado_en !== null) {
+		return {
+			success: false,
+			error: 'Esta funcionalidad solo está disponible en el primer inicio de sesión'
+		};
+	}
+
+	// Hashear nueva contraseña
+	const saltRounds = 10;
+	const nuevoHash = await bcrypt.hash(passwordNueva, saltRounds);
+
+	// Actualizar contraseña y registrar fecha de cambio
+	await sql`
+		UPDATE paciente
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NOW()
 		WHERE id_paciente = ${id_paciente}
 	`;
 
