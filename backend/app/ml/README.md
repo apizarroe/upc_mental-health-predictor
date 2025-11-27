@@ -1,16 +1,16 @@
-# 🧠 Módulo de Machine Learning - Detección de Depresión
+# 🧠 Módulo de Machine Learning - Detección de Trastornos Mentales
 
-Sistema de detección de depresión basado en **BERT + XGBoost** que analiza conversaciones de pacientes.
+Sistema de detección de **depresión y ansiedad** basado en **RoBERTa Biomedical + XGBoost Multi-Label** que analiza conversaciones de pacientes.
 
 > **💡 Para entrenar modelos desde cero:** Ver [Guía de Entrenamiento](../../docs/TRAINING_GUIDE.md)
 
 ## 📋 Descripción
 
-Este módulo implementa un pipeline completo de ML que:
+Este módulo implementa un pipeline completo de ML **multi-etiqueta** que:
 
 1. **Preprocesa** conversaciones de chat terapéuticas
-2. **Codifica** el texto usando embeddings BERT multilingües
-3. **Clasifica** usando XGBoost para detectar indicadores de depresión
+2. **Codifica** el texto usando embeddings RoBERTa Biomedical (español)
+3. **Clasifica** usando XGBoost Multi-Output para detectar **depresión Y ansiedad** simultáneamente
 
 ## 🏗️ Arquitectura
 
@@ -27,19 +27,24 @@ Este módulo implementa un pipeline completo de ML que:
          │
          ▼
 ┌─────────────────┐
-│  BERT Encoder   │  ← Embeddings de 768 dimensiones
+│ RoBERTa Encoder │  ← Embeddings de 768 dimensiones
+│   (Biomedical)  │    PlanTL-GOB-ES/roberta-base-biomedical-es
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│ XGBoost Classifier│ ← Clasificación binaria (0/1)
+│ XGBoost Multi-  │  ← Clasificación multi-etiqueta
+│ OutputClassifier│
 └────────┬────────┘
          │
          ▼
-  ┌────────────┐
-  │ Predicción │
-  │  Depresión │
-  └────────────┘
+  ┌──────────────────┐
+  │   Predicción     │
+  │ ┌──────┬───────┐ │
+  │ │Depre-│Ansie- │ │
+  │ │sión  │dad    │ │
+  │ └──────┴───────┘ │
+  └──────────────────┘
 ```
 
 ## 📁 Estructura de Archivos
@@ -89,18 +94,51 @@ pip install -r requirements.txt
 ### 2. Entrenar el modelo
 
 ```bash
-# Entrenamiento básico
-python train_model.py
+# Entrenamiento básico (multi-label: depresión + ansiedad)
+python scripts/train.py
 
 # Con configuración personalizada
-python train_model.py \
+python scripts/train.py \
     --data-path data/datasets/train-00000-of-00001.parquet \
-    --bert-model dccuchile/bert-base-spanish-wwm-cased \
-    --n-estimators 200 \
+    --bert-model PlanTL-GOB-ES/roberta-base-biomedical-es \
+    --n-estimators 150 \
+    --max-depth 5 \
+    --learning-rate 0.08 \
     --batch-size 32
 ```
 
-### 3. Usar el modelo entrenado
+### 3. Evaluar el modelo
+
+```bash
+# Evaluación multi-label completa (depresión + ansiedad)
+python scripts/test.py --full-test
+
+# Evaluar solo depresión
+python scripts/test.py --full-test --condition depression
+
+# Evaluar solo ansiedad
+python scripts/test.py --full-test --condition anxiety
+
+# Evaluar ambas condiciones por separado
+python scripts/test.py --full-test --condition depression anxiety
+
+# Testear texto personalizado
+python scripts/test.py --text "Me siento muy triste y nervioso últimamente"
+
+# Testear conversaciones aleatorias
+python scripts/test.py --random 10
+```
+
+| Comando | Descripción |
+|---------|-------------|
+| `--full-test` | Evalúa en todo el dataset |
+| `--condition all` | Multi-label (default) |
+| `--condition depression` | Solo depresión |
+| `--condition anxiety` | Solo ansiedad |
+| `--text "..."` | Texto personalizado |
+| `--random N` | N conversaciones aleatorias |
+
+### 4. Usar el modelo entrenado
 
 ```python
 from app.ml.prediction_pipeline import PredictionPipeline
@@ -108,12 +146,17 @@ from app.ml.prediction_pipeline import PredictionPipeline
 # Cargar modelo (automáticamente el más reciente)
 pipeline = PredictionPipeline()
 
-# Hacer predicción individual
-result = pipeline.predict_text("Me siento muy triste últimamente y sin energía...")
+# Hacer predicción individual (multi-label)
+result = pipeline.predict_text("Me siento muy triste y nervioso últimamente...")
 
-print(f"Predicción: {result['label']}")
-print(f"Probabilidad: {result['probability']:.2%}")
-print(f"Confianza: {result['confidence']:.2%}")
+# Resultado multi-etiqueta
+print(f"Depresión: {result['predictions']['depression']['label']}")
+print(f"  Probabilidad: {result['predictions']['depression']['probability']:.2%}")
+
+print(f"Ansiedad: {result['predictions']['anxiety']['label']}")
+print(f"  Probabilidad: {result['predictions']['anxiety']['probability']:.2%}")
+
+print(f"Condiciones detectadas: {result['summary']['conditions_detected']}")
 
 # Predicción en batch (eficiente para múltiples textos)
 texts = ["Texto 1", "Texto 2", "Texto 3"]
@@ -337,33 +380,45 @@ pipeline = PredictionPipeline(model_path="data/trained_models/mi_modelo.pkl")
 
 ## 📈 Métricas y Evaluación
 
-El modelo genera:
+El modelo multi-etiqueta genera métricas **por condición**:
 
+### Métricas por Condición (Depresión / Ansiedad)
 - **Accuracy**: Precisión general
 - **Precision**: Predicciones positivas correctas
 - **Recall**: Casos positivos detectados
 - **F1-Score**: Media armónica precision/recall
 - **Confusion Matrix**: Matriz de confusión
-- **Feature Importance**: Features más relevantes
+
+### Métricas Globales Multi-Label
+- **Exact Match**: Ambas predicciones correctas
+- **Hamming Loss**: Proporción de etiquetas incorrectas
+- **F1-Score Promedio**: Media de F1 por condición
 
 ## 🎯 Resultados Esperados
 
-Con el dataset de 1,000 conversaciones:
+Con el dataset de 1,000 conversaciones (multi-label):
 
-- **Accuracy**: ~75-85%
-- **Precision**: ~70-80%
-- **Recall**: ~65-75%
-- **F1-Score**: ~70-77%
+| Condición | Accuracy | Precision | Recall | F1-Score |
+|-----------|----------|-----------|--------|----------|
+| Depresión | ~75-85%  | ~70-80%   | ~65-75%| ~70-77%  |
+| Ansiedad  | ~70-80%  | ~65-75%   | ~60-70%| ~65-72%  |
 
-*Nota: Resultados varían según calidad de etiquetas*
+| Métrica Global | Valor Esperado |
+|----------------|----------------|
+| Exact Match    | ~60-70%        |
+| Hamming Loss   | ~0.15-0.25     |
+| F1 Promedio    | ~68-75%        |
+
+*Nota: Resultados varían según calidad de etiquetas heurísticas*
 
 ## 🔬 Mejoras Futuras
 
-1. **Mejor etiquetado**: Usar anotaciones manuales
-2. **Multi-clase**: Detectar múltiples trastornos
-3. **Fine-tuning**: Ajustar BERT al dominio
-4. **Ensemble**: Combinar múltiples modelos
-5. **Explicabilidad**: SHAP values, LIME
+1. **Mejor etiquetado**: Usar anotaciones manuales de profesionales
+2. ~~**Multi-clase**: Detectar múltiples trastornos~~ ✅ Implementado (depresión + ansiedad)
+3. **Más trastornos**: Agregar PTSD, bipolar, etc. (arquitectura escalable)
+4. **Fine-tuning**: Ajustar RoBERTa al dominio de salud mental
+5. **Ensemble**: Combinar múltiples modelos
+6. **Explicabilidad**: SHAP values, LIME para interpretar predicciones
 
 ## 📝 Notas Importantes
 

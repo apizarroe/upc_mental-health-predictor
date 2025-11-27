@@ -15,7 +15,7 @@ export async function load({ cookies }) {
 
 			// Si la sesión es válida (menos de 30 minutos), redirigir al dashboard
 			if (minutosTranscurridos <= 30) {
-				throw redirect(303, '/');
+				throw redirect(303, '/inicio');
 			}
 		} catch (error) {
 			if (error.status === 303) {

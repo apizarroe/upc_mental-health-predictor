@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """
 Script CLI para entrenar el modelo BERT + XGBoost
-para detección de depresión.
+para detección de trastornos mentales.
+
+Soporta modelos binarios (solo depresión) y multi-etiqueta (depresión + ansiedad).
 
 Uso:
+    # Entrenar modelo multi-etiqueta (default)
     python scripts/train.py
+
+    # Entrenar modelo binario (solo depresión)
+    python scripts/train.py --binary
+
+    # Con modelo BERT específico
     python scripts/train.py --bert-model dccuchile/bert-base-spanish-wwm-cased
+
+    # Con datos personalizados
     python scripts/train.py --data-path data/datasets/custom_data.parquet
 """
 
@@ -30,12 +40,15 @@ from app.ml.training_pipeline import TrainingPipeline
 def parse_args():
     """Parsea argumentos de línea de comandos."""
     parser = argparse.ArgumentParser(
-        description='Entrenar modelo BERT + XGBoost para detección de depresión',
+        description='Entrenar modelo BERT + XGBoost para detección de trastornos mentales',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos de uso:
-    # Entrenamiento básico
+    # Entrenamiento multi-etiqueta (depresión + ansiedad) - DEFAULT
     python scripts/train.py
+
+    # Entrenamiento binario (solo depresión)
+    python scripts/train.py --binary
 
     # Con modelo BERT específico
     python scripts/train.py --bert-model bert-base-multilingual-cased
@@ -65,8 +78,8 @@ Ejemplos de uso:
     parser.add_argument(
         '--bert-model',
         type=str,
-        default='dccuchile/bert-base-spanish-wwm-cased',
-        help='Nombre del modelo BERT pre-entrenado a usar'
+        default='PlanTL-GOB-ES/roberta-base-biomedical-es',
+        help='Nombre del modelo BERT/RoBERTa pre-entrenado a usar'
     )
 
     parser.add_argument(
@@ -74,6 +87,12 @@ Ejemplos de uso:
         type=str,
         default=None,
         help='Nombre para el modelo guardado (default: timestamp)'
+    )
+
+    parser.add_argument(
+        '--binary',
+        action='store_true',
+        help='Entrenar modelo binario (solo depresión). Por defecto entrena multi-etiqueta.'
     )
 
     parser.add_argument(
@@ -107,22 +126,22 @@ Ejemplos de uso:
     parser.add_argument(
         '--n-estimators',
         type=int,
-        default=100,
-        help='Número de estimadores para XGBoost (default: 100)'
+        default=150,
+        help='Número de estimadores para XGBoost (default: 150)'
     )
 
     parser.add_argument(
         '--max-depth',
         type=int,
-        default=6,
-        help='Profundidad máxima de árboles XGBoost (default: 6)'
+        default=5,
+        help='Profundidad máxima de árboles XGBoost (default: 5)'
     )
 
     parser.add_argument(
         '--learning-rate',
         type=float,
-        default=0.1,
-        help='Tasa de aprendizaje XGBoost (default: 0.1)'
+        default=0.08,
+        help='Tasa de aprendizaje XGBoost (default: 0.08)'
     )
 
     parser.add_argument(
@@ -139,6 +158,10 @@ def main():
     """Función principal."""
     args = parse_args()
 
+    # Determinar tipo de modelo
+    multi_label = not args.binary
+    model_type_str = "Multi-Etiqueta (Depresión + Ansiedad)" if multi_label else "Binario (Solo Depresión)"
+
     # Verificar que existe el archivo de datos
     data_path = Path(args.data_path)
     if not data_path.exists():
@@ -147,19 +170,21 @@ def main():
         sys.exit(1)
 
     print("🚀 Iniciando entrenamiento de modelo")
+    print(f"   • Tipo: {model_type_str}")
     print(f"   • Datos: {data_path}")
     print(f"   • Modelo BERT: {args.bert_model}")
     print(f"   • Output: {args.output_dir}")
     print()
 
     try:
-        # Crear pipeline
+        # Crear pipeline con soporte multi-etiqueta
         pipeline = TrainingPipeline(
             data_path=str(data_path),
             output_dir=args.output_dir,
             test_size=args.test_size,
             val_size=args.val_size,
-            random_state=args.random_state
+            random_state=args.random_state,
+            multi_label=multi_label
         )
 
         # Preparar datos
@@ -191,11 +216,32 @@ def main():
         print("\n" + "=" * 80)
         print("✅ ENTRENAMIENTO COMPLETADO EXITOSAMENTE")
         print("=" * 80)
+
+        # Mostrar métricas según tipo de modelo
         print(f"\n📊 Resultados finales (Test Set):")
-        print(f"   • Accuracy:  {test_metrics['accuracy']:.4f}")
-        print(f"   • Precision: {test_metrics['precision']:.4f}")
-        print(f"   • Recall:    {test_metrics['recall']:.4f}")
-        print(f"   • F1-Score:  {test_metrics['f1_score']:.4f}")
+
+        if multi_label:
+            # Métricas multi-etiqueta
+            for label in ['depression', 'anxiety']:
+                if label in test_metrics:
+                    m = test_metrics[label]
+                    print(f"\n   📌 {label.upper()}:")
+                    print(f"      • Accuracy:  {m.get('accuracy', 0):.4f}")
+                    print(f"      • Precision: {m.get('precision', 0):.4f}")
+                    print(f"      • Recall:    {m.get('recall', 0):.4f}")
+                    print(f"      • F1-Score:  {m.get('f1_score', 0):.4f}")
+
+            if 'overall' in test_metrics:
+                print(f"\n   📈 OVERALL:")
+                print(f"      • Avg Accuracy:  {test_metrics['overall'].get('avg_accuracy', 0):.4f}")
+                print(f"      • Avg F1-Score:  {test_metrics['overall'].get('avg_f1_score', 0):.4f}")
+        else:
+            # Métricas binarias
+            print(f"   • Accuracy:  {test_metrics.get('accuracy', 0):.4f}")
+            print(f"   • Precision: {test_metrics.get('precision', 0):.4f}")
+            print(f"   • Recall:    {test_metrics.get('recall', 0):.4f}")
+            print(f"   • F1-Score:  {test_metrics.get('f1_score', 0):.4f}")
+
         print(f"\n💾 Archivos guardados:")
         print(f"   • {model_path}")
         print(f"   • {metadata_path}")

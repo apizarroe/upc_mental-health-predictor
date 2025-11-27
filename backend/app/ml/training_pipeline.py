@@ -1,6 +1,7 @@
 """
 Pipeline completo de entrenamiento: BERT + XGBoost
-para detección de depresión.
+para detección de trastornos mentales.
+Soporta entrenamiento binario (solo depresión) y multi-etiqueta (depresión + ansiedad).
 """
 
 import numpy as np
@@ -10,8 +11,9 @@ import json
 from datetime import datetime
 
 from .preprocessor import TextPreprocessor
-from .bert_encoder import BERTEncoder
+from .transformer_encoder import TransformerEncoder
 from .classifier import DepressionClassifier
+from .multi_label_classifier import MultiLabelMentalHealthClassifier
 
 
 class TrainingPipeline:
@@ -23,7 +25,8 @@ class TrainingPipeline:
         output_dir: str = "../../data/trained_models",
         test_size: float = 0.2,
         val_size: float = 0.1,
-        random_state: int = 42
+        random_state: int = 42,
+        multi_label: bool = True
     ):
         """
         Inicializa el pipeline de entrenamiento.
@@ -34,6 +37,7 @@ class TrainingPipeline:
             test_size: Proporción de datos para test
             val_size: Proporción de datos para validación
             random_state: Semilla aleatoria
+            multi_label: Si True, entrena modelo multi-etiqueta (depresión + ansiedad)
         """
         self.data_path = data_path
         self.output_dir = Path(output_dir)
@@ -42,6 +46,7 @@ class TrainingPipeline:
         self.test_size = test_size
         self.val_size = val_size
         self.random_state = random_state
+        self.multi_label = multi_label
 
         # Componentes del pipeline
         self.preprocessor = None
@@ -55,7 +60,10 @@ class TrainingPipeline:
 
         print("=" * 80)
         print("🎯 ENTRENAMIENTO DE MODELO BERT + XGBOOST")
-        print("   Detección de Depresión")
+        if multi_label:
+            print("   Detección Multi-Etiqueta: Depresión + Ansiedad")
+        else:
+            print("   Detección de Depresión (binario)")
         print("=" * 80)
 
     def prepare_data(self):
@@ -64,11 +72,16 @@ class TrainingPipeline:
         print("-" * 80)
 
         self.preprocessor = TextPreprocessor()
-        self.texts, self.labels = self.preprocessor.create_dataset(self.data_path)
+        self.texts, self.labels = self.preprocessor.create_dataset(
+            self.data_path,
+            multi_label=self.multi_label
+        )
 
-        print(f"\n   Distribución de clases:")
-        print(f"   • Depresión (1): {sum(self.labels)} ({sum(self.labels)/len(self.labels)*100:.1f}%)")
-        print(f"   • No depresión (0): {len(self.labels) - sum(self.labels)} ({(1-sum(self.labels)/len(self.labels))*100:.1f}%)")
+        if not self.multi_label:
+            # Mostrar distribución para modelo binario
+            print(f"\n   Distribución de clases:")
+            print(f"   • Depresión (1): {sum(self.labels)} ({sum(self.labels)/len(self.labels)*100:.1f}%)")
+            print(f"   • No depresión (0): {len(self.labels) - sum(self.labels)} ({(1-sum(self.labels)/len(self.labels))*100:.1f}%)")
 
     def generate_embeddings(
         self,
@@ -87,7 +100,7 @@ class TrainingPipeline:
         print("\n🧠 PASO 2: Generación de embeddings BERT")
         print("-" * 80)
 
-        self.encoder = BERTEncoder(
+        self.encoder = TransformerEncoder(
             model_name=model_name,
             max_length=max_length,
             batch_size=batch_size
@@ -102,14 +115,27 @@ class TrainingPipeline:
         print("\n✂️  PASO 3: División de datos")
         print("-" * 80)
 
+        if self.multi_label:
+            # Para multi-label, no podemos usar stratify directamente
+            # Usamos stratify en la primera etiqueta (depresión)
+            stratify_labels = self.labels[:, 0]
+        else:
+            stratify_labels = self.labels
+
         # Primero separar test
         X_temp, X_test, y_temp, y_test = train_test_split(
             self.embeddings,
             self.labels,
             test_size=self.test_size,
             random_state=self.random_state,
-            stratify=self.labels
+            stratify=stratify_labels
         )
+
+        # Actualizar stratify para el segundo split
+        if self.multi_label:
+            stratify_temp = y_temp[:, 0]
+        else:
+            stratify_temp = y_temp
 
         # Luego separar train y validation
         val_size_adjusted = self.val_size / (1 - self.test_size)
@@ -118,7 +144,7 @@ class TrainingPipeline:
             y_temp,
             test_size=val_size_adjusted,
             random_state=self.random_state,
-            stratify=y_temp
+            stratify=stratify_temp
         )
 
         self.data_splits = {
@@ -151,12 +177,20 @@ class TrainingPipeline:
         print("\n🚀 PASO 4: Entrenamiento del clasificador XGBoost")
         print("-" * 80)
 
-        self.classifier = DepressionClassifier(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            learning_rate=learning_rate,
-            random_state=self.random_state
-        )
+        if self.multi_label:
+            self.classifier = MultiLabelMentalHealthClassifier(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                learning_rate=learning_rate,
+                random_state=self.random_state
+            )
+        else:
+            self.classifier = DepressionClassifier(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                learning_rate=learning_rate,
+                random_state=self.random_state
+            )
 
         self.metrics = self.classifier.train(
             self.data_splits['X_train'],
@@ -191,19 +225,32 @@ class TrainingPipeline:
 
         if model_name is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_name = f"depression_bert_xgboost_{timestamp}"
+            if self.multi_label:
+                model_name = f"mental_health_multilabel_{timestamp}"
+            else:
+                model_name = f"depression_bert_xgboost_{timestamp}"
 
         # Guardar clasificador
         model_path = self.output_dir / f"{model_name}.pkl"
         self.classifier.save(str(model_path))
 
+        # Determinar número de samples según tipo de labels
+        if self.multi_label:
+            n_labels = self.labels.shape[1] if hasattr(self.labels, 'shape') else 2
+        else:
+            n_labels = 1
+
         # Guardar metadatos
         metadata = {
             'model_name': model_name,
+            'model_type': 'multi_label' if self.multi_label else 'binary',
+            'labels': ['depression', 'anxiety'] if self.multi_label else ['depression'],
             'created_at': datetime.now().isoformat(),
             'bert_model': self.encoder.model_name,
             'embedding_dim': self.encoder.get_embedding_dim(),
+            'max_length': self.encoder.max_length,
             'n_samples': len(self.labels),
+            'n_labels': n_labels,
             'n_train': len(self.data_splits['y_train']),
             'n_val': len(self.data_splits['y_val']),
             'n_test': len(self.data_splits['y_test']),
@@ -259,6 +306,8 @@ class TrainingPipeline:
 
         print("\n" + "=" * 80)
         print("✅ ENTRENAMIENTO COMPLETADO EXITOSAMENTE!")
+        if self.multi_label:
+            print("   Modelo Multi-Etiqueta: Depresión + Ansiedad")
         print("=" * 80)
 
         return test_metrics
@@ -268,13 +317,15 @@ if __name__ == "__main__":
     # Ejemplo de uso
     data_path = "../../data/datasets/train-00000-of-00001.parquet"
 
+    # Entrenamiento multi-etiqueta (depresión + ansiedad)
     pipeline = TrainingPipeline(
         data_path=data_path,
         test_size=0.2,
-        val_size=0.1
+        val_size=0.1,
+        multi_label=True  # Activar multi-etiqueta
     )
 
     # Ejecutar pipeline completo
     metrics = pipeline.run_complete_pipeline()
 
-    print("\n🎉 Modelo entrenado y guardado!")
+    print("\n🎉 Modelo multi-etiqueta entrenado y guardado!")

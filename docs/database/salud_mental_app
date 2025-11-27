@@ -1,0 +1,724 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 17.6
+-- Dumped by pg_dump version 17.0
+
+-- Started on 2025-11-26 19:18:41 -05
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 220 (class 1259 OID 90699)
+-- Name: especialista; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.especialista (
+    id_especialista bigint NOT NULL,
+    dni character varying(12),
+    nombres character varying(80),
+    apellidos character varying(80),
+    especialidad character varying(50),
+    colegiatura character varying(20),
+    correo character varying(50),
+    telefono character varying(20),
+    cargo character varying(50),
+    usuario character varying(50),
+    password_hash character varying(255),
+    rol character varying(20) DEFAULT 'especialista'::character varying,
+    ultimo_acceso timestamp without time zone,
+    intentos_fallidos integer DEFAULT 0,
+    bloqueado_hasta timestamp without time zone,
+    flg_activo boolean DEFAULT true
+);
+
+
+ALTER TABLE public.especialista OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 90698)
+-- Name: especialista_id_especialista_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.especialista_id_especialista_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.especialista_id_especialista_seq OWNER TO postgres;
+
+--
+-- TOC entry 3693 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: especialista_id_especialista_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.especialista_id_especialista_seq OWNED BY public.especialista.id_especialista;
+
+
+--
+-- TOC entry 228 (class 1259 OID 90770)
+-- Name: evaluacion_ml; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.evaluacion_ml (
+    id_evaluacion bigint NOT NULL,
+    id_respuesta bigint NOT NULL,
+    fecha_evaluacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    modelo_nombre character varying(100) NOT NULL,
+    modelo_tipo character varying(20) NOT NULL,
+    modelo_version character varying(50),
+    trastornos_detectados jsonb NOT NULL,
+    condiciones_detectadas text[],
+    nivel_riesgo_global character varying(20),
+    palabras_clave jsonb,
+    interpretacion text,
+    metricas_modelo jsonb,
+    requiere_atencion boolean DEFAULT false,
+    notas_sistema text
+);
+
+
+ALTER TABLE public.evaluacion_ml OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 90769)
+-- Name: evaluacion_ml_id_evaluacion_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.evaluacion_ml_id_evaluacion_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.evaluacion_ml_id_evaluacion_seq OWNER TO postgres;
+
+--
+-- TOC entry 3694 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: evaluacion_ml_id_evaluacion_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.evaluacion_ml_id_evaluacion_seq OWNED BY public.evaluacion_ml.id_evaluacion;
+
+
+--
+-- TOC entry 230 (class 1259 OID 90781)
+-- Name: evaluacion_validacion; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.evaluacion_validacion (
+    id_validacion bigint NOT NULL,
+    id_evaluacion bigint NOT NULL,
+    id_especialista bigint NOT NULL,
+    fecha_validacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    diagnostico_especialista jsonb NOT NULL,
+    coincidencias jsonb,
+    precision_global character varying(20) NOT NULL,
+    falsos_positivos text[],
+    falsos_negativos text[],
+    nivel_confianza integer,
+    observaciones text,
+    recomendacion_paciente text,
+    requiere_seguimiento boolean DEFAULT false,
+    util_para_entrenamiento boolean DEFAULT true
+);
+
+
+ALTER TABLE public.evaluacion_validacion OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 90780)
+-- Name: evaluacion_validacion_id_validacion_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.evaluacion_validacion_id_validacion_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.evaluacion_validacion_id_validacion_seq OWNER TO postgres;
+
+--
+-- TOC entry 3695 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: evaluacion_validacion_id_validacion_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.evaluacion_validacion_id_validacion_seq OWNED BY public.evaluacion_validacion.id_validacion;
+
+
+--
+-- TOC entry 222 (class 1259 OID 90713)
+-- Name: historia_clinica; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.historia_clinica (
+    id_historia bigint NOT NULL,
+    id_paciente bigint,
+    fecha_apertura timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    especialista_apertura bigint,
+    servicio_origen character varying(100),
+    antecedentes_personales text,
+    antecedentes_familiares jsonb,
+    antecedentes_psicosociales text,
+    habitos_personales jsonb,
+    situacion_familiar text,
+    situacion_laboral text,
+    evaluacion_inicial text,
+    diagnostico_inicial text,
+    tratamientos_previos text,
+    situacion_historia character varying(30) DEFAULT 'Abierta'::character varying,
+    fecha_actualizacion timestamp without time zone,
+    especialista_actualizacion bigint,
+    fecha_cierre timestamp without time zone,
+    motivo_cierre text
+);
+
+
+ALTER TABLE public.historia_clinica OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 90712)
+-- Name: historia_clinica_id_historia_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.historia_clinica_id_historia_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.historia_clinica_id_historia_seq OWNER TO postgres;
+
+--
+-- TOC entry 3696 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: historia_clinica_id_historia_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.historia_clinica_id_historia_seq OWNED BY public.historia_clinica.id_historia;
+
+
+--
+-- TOC entry 218 (class 1259 OID 90685)
+-- Name: paciente; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.paciente (
+    id_paciente bigint NOT NULL,
+    dni character varying(12),
+    nombres character varying(80),
+    apellidos character varying(80),
+    fecha_nacimiento date,
+    sexo character(1),
+    direccion character varying(255),
+    telefono character varying(20),
+    correo character varying(50),
+    contacto_emergencia character varying(150),
+    telefono_emergencia character varying(20),
+    password_hash character varying(255),
+    ultimo_acceso timestamp without time zone,
+    intentos_fallidos integer DEFAULT 0,
+    bloqueado_hasta timestamp without time zone,
+    fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    flg_activo boolean DEFAULT true
+);
+
+
+ALTER TABLE public.paciente OWNER TO postgres;
+
+--
+-- TOC entry 217 (class 1259 OID 90684)
+-- Name: paciente_id_paciente_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.paciente_id_paciente_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.paciente_id_paciente_seq OWNER TO postgres;
+
+--
+-- TOC entry 3697 (class 0 OID 0)
+-- Dependencies: 217
+-- Name: paciente_id_paciente_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.paciente_id_paciente_seq OWNED BY public.paciente.id_paciente;
+
+
+--
+-- TOC entry 224 (class 1259 OID 90724)
+-- Name: paciente_medicacion; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.paciente_medicacion (
+    id_medicacion_paciente integer NOT NULL,
+    id_historia integer NOT NULL,
+    medicacion character varying(150) NOT NULL,
+    concentracion character varying(50),
+    forma_farmaceutica character varying(50),
+    dosis character varying(50),
+    frecuencia character varying(50),
+    anio_inicio integer,
+    tipo_medicacion character varying(50),
+    prescrito_por character varying(100),
+    observaciones text,
+    fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.paciente_medicacion OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 90723)
+-- Name: paciente_medicacion_id_medicacion_paciente_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.paciente_medicacion_id_medicacion_paciente_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.paciente_medicacion_id_medicacion_paciente_seq OWNER TO postgres;
+
+--
+-- TOC entry 3698 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: paciente_medicacion_id_medicacion_paciente_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.paciente_medicacion_id_medicacion_paciente_seq OWNED BY public.paciente_medicacion.id_medicacion_paciente;
+
+
+--
+-- TOC entry 226 (class 1259 OID 90759)
+-- Name: paciente_respuesta; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.paciente_respuesta (
+    id_respuesta bigint NOT NULL,
+    id_paciente bigint NOT NULL,
+    fecha_respuesta timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    respuestas jsonb NOT NULL,
+    estado_procesamiento character varying(20) DEFAULT 'pendiente'::character varying NOT NULL,
+    id_evaluacion bigint,
+    error_mensaje text
+);
+
+
+ALTER TABLE public.paciente_respuesta OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 90758)
+-- Name: paciente_respuesta_id_respuesta_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.paciente_respuesta_id_respuesta_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.paciente_respuesta_id_respuesta_seq OWNER TO postgres;
+
+--
+-- TOC entry 3699 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: paciente_respuesta_id_respuesta_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.paciente_respuesta_id_respuesta_seq OWNED BY public.paciente_respuesta.id_respuesta;
+
+
+--
+-- TOC entry 3484 (class 2604 OID 90702)
+-- Name: especialista id_especialista; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.especialista ALTER COLUMN id_especialista SET DEFAULT nextval('public.especialista_id_especialista_seq'::regclass);
+
+
+--
+-- TOC entry 3496 (class 2604 OID 90773)
+-- Name: evaluacion_ml id_evaluacion; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.evaluacion_ml ALTER COLUMN id_evaluacion SET DEFAULT nextval('public.evaluacion_ml_id_evaluacion_seq'::regclass);
+
+
+--
+-- TOC entry 3499 (class 2604 OID 90784)
+-- Name: evaluacion_validacion id_validacion; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.evaluacion_validacion ALTER COLUMN id_validacion SET DEFAULT nextval('public.evaluacion_validacion_id_validacion_seq'::regclass);
+
+
+--
+-- TOC entry 3488 (class 2604 OID 90716)
+-- Name: historia_clinica id_historia; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.historia_clinica ALTER COLUMN id_historia SET DEFAULT nextval('public.historia_clinica_id_historia_seq'::regclass);
+
+
+--
+-- TOC entry 3480 (class 2604 OID 90688)
+-- Name: paciente id_paciente; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente ALTER COLUMN id_paciente SET DEFAULT nextval('public.paciente_id_paciente_seq'::regclass);
+
+
+--
+-- TOC entry 3491 (class 2604 OID 90727)
+-- Name: paciente_medicacion id_medicacion_paciente; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente_medicacion ALTER COLUMN id_medicacion_paciente SET DEFAULT nextval('public.paciente_medicacion_id_medicacion_paciente_seq'::regclass);
+
+
+--
+-- TOC entry 3493 (class 2604 OID 90762)
+-- Name: paciente_respuesta id_respuesta; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente_respuesta ALTER COLUMN id_respuesta SET DEFAULT nextval('public.paciente_respuesta_id_respuesta_seq'::regclass);
+
+
+--
+-- TOC entry 3677 (class 0 OID 90699)
+-- Dependencies: 220
+-- Data for Name: especialista; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.especialista (id_especialista, dni, nombres, apellidos, especialidad, colegiatura, correo, telefono, cargo, usuario, password_hash, rol, ultimo_acceso, intentos_fallidos, bloqueado_hasta, flg_activo) FROM stdin;
+1	12345678	María	González Pérez	Psicóloga Clínica	CPsP12345	mgonzalez@centro.com	987654321	Psicóloga Senior	mgonzalez	$2a$10$JesoGqxHvlJ3/F/5NzF.H.TDUl7xT.At0qqNKoL4L1TCCLgkO1i8u	admin	2025-11-25 18:49:01.625148	0	\N	t
+2	23456789	Carlos	Ramírez Torres	Psiquiatra	CMP23456	cramirez@centro.com	987654322	Psiquiatra	cramirez	$2a$10$7H9dY06fzkEAbeffjDMj1O3NeeB7.XWufcSInLeIEAap0cWHAfZoG	especialista	2025-11-26 14:36:58.749928	0	\N	t
+\.
+
+
+--
+-- TOC entry 3685 (class 0 OID 90770)
+-- Dependencies: 228
+-- Data for Name: evaluacion_ml; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.evaluacion_ml (id_evaluacion, id_respuesta, fecha_evaluacion, modelo_nombre, modelo_tipo, modelo_version, trastornos_detectados, condiciones_detectadas, nivel_riesgo_global, palabras_clave, interpretacion, metricas_modelo, requiere_atencion, notas_sistema) FROM stdin;
+1	4	2025-11-26 01:51:27.697702	mental_health_multilabel_20251123_200532	multi_label	PlanTL-GOB-ES/roberta-base-biomedical-es	{"anxiety": {"label": "Ansiedad", "confidence": 0.9158, "probability": 0.9158, "has_condition": true}, "depression": {"label": "Depresión", "confidence": 0.91, "probability": 0.91, "has_condition": true}}	{depression,anxiety}	alto	{"anxiety": ["estrés"], "depression": ["triste"]}	Se detectaron indicadores de depresión (91%) y ansiedad (92%). Se recomienda evaluación profesional.	{"anxiety": {"recall": 0.7741935483870968, "accuracy": 0.77, "f1_score": 0.7578947368421053, "precision": 0.7422680412371134}, "overall": {"avg_accuracy": 0.745, "avg_f1_score": 0.7582577132486388}, "depression": {"recall": 0.8073394495412844, "accuracy": 0.72, "f1_score": 0.7586206896551724, "precision": 0.7154471544715447}}	t	\N
+\.
+
+
+--
+-- TOC entry 3687 (class 0 OID 90781)
+-- Dependencies: 230
+-- Data for Name: evaluacion_validacion; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.evaluacion_validacion (id_validacion, id_evaluacion, id_especialista, fecha_validacion, diagnostico_especialista, coincidencias, precision_global, falsos_positivos, falsos_negativos, nivel_confianza, observaciones, recomendacion_paciente, requiere_seguimiento, util_para_entrenamiento) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3679 (class 0 OID 90713)
+-- Dependencies: 222
+-- Data for Name: historia_clinica; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.historia_clinica (id_historia, id_paciente, fecha_apertura, especialista_apertura, servicio_origen, antecedentes_personales, antecedentes_familiares, antecedentes_psicosociales, habitos_personales, situacion_familiar, situacion_laboral, evaluacion_inicial, diagnostico_inicial, tratamientos_previos, situacion_historia, fecha_actualizacion, especialista_actualizacion, fecha_cierre, motivo_cierre) FROM stdin;
+1	1	2025-11-25 18:48:01.321161	1	Consulta Externa	Sin antecedentes médicos relevantes. No hospitalizaciones previas.	"{\\"depresion\\":false,\\"ansiedad\\":false,\\"bipolaridad\\":false,\\"esquizofrenia\\":false,\\"tdah\\":false,\\"toc\\":false,\\"adicciones\\":false,\\"suicidio\\":false,\\"otros\\":\\"Madre con trastorno de ansiedad generalizada diagnosticado hace 10 años\\"}"	Nivel socioeconómico medio. Educación universitaria completa. Red de apoyo familiar presente.	"{\\"alcohol\\":\\"Ocasional\\",\\"alcohol_frecuencia\\":\\"1-2 veces/mes\\",\\"tabaco\\":\\"No\\",\\"tabaco_frecuencia\\":\\"\\",\\"drogas\\":\\"No\\",\\"drogas_frecuencia\\":\\"\\",\\"sueño_horas\\":\\"6-7h\\",\\"sueño_calidad\\":\\"Regular\\",\\"alimentacion\\":\\"Adecuada\\",\\"ejercicio\\":\\"2-3 veces/semana\\",\\"otros\\":\\"\\"}"	Vive con pareja e hijo de 5 años. Relación familiar estable con comunicación fluida.	Empleado a tiempo completo en empresa privada. Estrés laboral moderado por alta carga de trabajo.	Paciente refiere episodios de ansiedad recurrentes desde hace 3 meses, principalmente en contexto laboral. Presenta preocupación excesiva, tensión muscular y dificultad para concentrarse. No síntomas depresivos asociados.	Impresión diagnóstica: Trastorno de Ansiedad Generalizada (F41.1)	Ninguno	Abierta	2025-11-25 19:08:05.041	1	\N	\N
+\.
+
+
+--
+-- TOC entry 3675 (class 0 OID 90685)
+-- Dependencies: 218
+-- Data for Name: paciente; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.paciente (id_paciente, dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, password_hash, ultimo_acceso, intentos_fallidos, bloqueado_hasta, fecha_registro, flg_activo) FROM stdin;
+2	43678787	Nancy	Huaman Espinoza	1959-12-13	F	Calle 32 Mz P2 Lt 77	987177288	ncyhuaman@hotmail.com	Alejandro Huaman	922309302	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	\N	0	\N	2025-11-25 18:39:50.69523	f
+1	43837903	Aldo	Pizarro Espinoza	1990-01-01	M	Jr. Los Olivos 456	947299051	apizarro_13@hotmail.com	Pedro González	933300010	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 13:22:26.271662	0	\N	2025-11-25 18:38:51.746213	t
+3	07090809	Rene	Ortiz Ccarita	1980-01-23	M	Los Gorriones 225	989789998	rortizc@gmail.com	Luis Suarez	967878878	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 13:23:41.482059	0	\N	2025-11-25 18:41:39.828211	t
+\.
+
+
+--
+-- TOC entry 3681 (class 0 OID 90724)
+-- Dependencies: 224
+-- Data for Name: paciente_medicacion; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.paciente_medicacion (id_medicacion_paciente, id_historia, medicacion, concentracion, forma_farmaceutica, dosis, frecuencia, anio_inicio, tipo_medicacion, prescrito_por, observaciones, fecha_registro) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3683 (class 0 OID 90759)
+-- Dependencies: 226
+-- Data for Name: paciente_respuesta; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.paciente_respuesta (id_respuesta, id_paciente, fecha_respuesta, respuestas, estado_procesamiento, id_evaluacion, error_mensaje) FROM stdin;
+2	1	2025-11-25 23:27:05.544882	{"question1": "Últimamente me he sentido muy triste y abrumado. El trabajo se ha convertido en una enorme fuente de estrés para mí.", "question2": "Recientemente obtuve un ascenso en el trabajo, lo cual pensé que sería emocionante. Pero las responsabilidades y la presión adicionales acaban de pasar factura a mi salud mental. Ha sido una experiencia realmente conmovedora para mí", "question3": "Bueno, la carga de trabajo ha aumentado significativamente y me resulta difícil mantener el equilibrio entre el trabajo y la vida personal. Me he quedado hasta tarde en la oficina y siento como si estuviera constantemente bajo un montón de tareas interminables. Es muy difícil mantener el ritmo y está afectando mi bienestar general.", "question4": "He estado tratando de priorizar mis tareas y delegar siempre que sea posible. También comencé a practicar la meditación durante mis descansos para ayudar a controlar el estrés. Pero a veces siento que no importa lo que haga, no puedo tomar un descanso. Ha sido una lucha constante."}	pendiente	\N	\N
+3	1	2025-11-25 23:29:33.719722	{"question1": "Últimamente me he sentido muy triste y abrumado. El trabajo se ha convertido en una enorme fuente de estrés para mí.", "question2": "Recientemente obtuve un ascenso en el trabajo, lo cual pensé que sería emocionante. Pero las responsabilidades y la presión adicionales acaban de pasar factura a mi salud mental. Ha sido una experiencia realmente conmovedora para mí.", "question3": "Bueno, la carga de trabajo ha aumentado significativamente y me resulta difícil mantener el equilibrio entre el trabajo y la vida personal. Me he quedado hasta tarde en la oficina y siento como si estuviera constantemente bajo un montón de tareas interminables. Es muy difícil mantener el ritmo y está afectando mi bienestar general.", "question4": "He estado tratando de priorizar mis tareas y delegar siempre que sea posible. También comencé a practicar la meditación durante mis descansos para ayudar a controlar el estrés. Pero a veces siento que no importa lo que haga, no puedo tomar un descanso. Ha sido una lucha constante."}	pendiente	\N	\N
+4	1	2025-11-26 01:51:26.159437	{"question1": "Últimamente me he sentido muy triste y abrumada. El trabajo se ha convertido en una enorme fuente de estrés para mí.", "question2": "Recientemente obtuve un ascenso en el trabajo, lo cual pensé que sería emocionante. Pero las responsabilidades y la presión adicionales acaban de pasar factura a mi salud mental. Ha sido una experiencia realmente conmovedora para mí.", "question3": "Bueno, la carga de trabajo ha aumentado significativamente y me resulta difícil mantener el equilibrio entre el trabajo y la vida personal. Me he quedado hasta tarde en la oficina y siento como si estuviera constantemente bajo un montón de tareas interminables. Es muy difícil mantener el ritmo y está afectando mi bienestar general.", "question4": "He estado tratando de priorizar mis tareas y delegar siempre que sea posible. También comencé a practicar la meditación durante mis descansos para ayudar a controlar el estrés. Pero a veces siento que no importa lo que haga, no puedo tomar un descanso. Ha sido una lucha constante."}	procesado	1	\N
+\.
+
+
+--
+-- TOC entry 3700 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: especialista_id_especialista_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.especialista_id_especialista_seq', 2, true);
+
+
+--
+-- TOC entry 3701 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: evaluacion_ml_id_evaluacion_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.evaluacion_ml_id_evaluacion_seq', 1, true);
+
+
+--
+-- TOC entry 3702 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: evaluacion_validacion_id_validacion_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.evaluacion_validacion_id_validacion_seq', 1, false);
+
+
+--
+-- TOC entry 3703 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: historia_clinica_id_historia_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.historia_clinica_id_historia_seq', 1, true);
+
+
+--
+-- TOC entry 3704 (class 0 OID 0)
+-- Dependencies: 217
+-- Name: paciente_id_paciente_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.paciente_id_paciente_seq', 3, true);
+
+
+--
+-- TOC entry 3705 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: paciente_medicacion_id_medicacion_paciente_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.paciente_medicacion_id_medicacion_paciente_seq', 1, false);
+
+
+--
+-- TOC entry 3706 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: paciente_respuesta_id_respuesta_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.paciente_respuesta_id_respuesta_seq', 4, true);
+
+
+--
+-- TOC entry 3508 (class 2606 OID 90709)
+-- Name: especialista especialista_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.especialista
+    ADD CONSTRAINT especialista_pkey PRIMARY KEY (id_especialista);
+
+
+--
+-- TOC entry 3510 (class 2606 OID 90711)
+-- Name: especialista especialista_usuario_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.especialista
+    ADD CONSTRAINT especialista_usuario_key UNIQUE (usuario);
+
+
+--
+-- TOC entry 3522 (class 2606 OID 90779)
+-- Name: evaluacion_ml evaluacion_ml_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.evaluacion_ml
+    ADD CONSTRAINT evaluacion_ml_pkey PRIMARY KEY (id_evaluacion);
+
+
+--
+-- TOC entry 3524 (class 2606 OID 90791)
+-- Name: evaluacion_validacion evaluacion_validacion_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.evaluacion_validacion
+    ADD CONSTRAINT evaluacion_validacion_pkey PRIMARY KEY (id_validacion);
+
+
+--
+-- TOC entry 3512 (class 2606 OID 90722)
+-- Name: historia_clinica historia_clinica_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.historia_clinica
+    ADD CONSTRAINT historia_clinica_pkey PRIMARY KEY (id_historia);
+
+
+--
+-- TOC entry 3504 (class 2606 OID 90697)
+-- Name: paciente paciente_dni_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente
+    ADD CONSTRAINT paciente_dni_key UNIQUE (dni);
+
+
+--
+-- TOC entry 3518 (class 2606 OID 90732)
+-- Name: paciente_medicacion paciente_medicacion_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente_medicacion
+    ADD CONSTRAINT paciente_medicacion_pkey PRIMARY KEY (id_medicacion_paciente);
+
+
+--
+-- TOC entry 3506 (class 2606 OID 90695)
+-- Name: paciente paciente_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente
+    ADD CONSTRAINT paciente_pkey PRIMARY KEY (id_paciente);
+
+
+--
+-- TOC entry 3520 (class 2606 OID 90768)
+-- Name: paciente_respuesta paciente_respuesta_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente_respuesta
+    ADD CONSTRAINT paciente_respuesta_pkey PRIMARY KEY (id_respuesta);
+
+
+--
+-- TOC entry 3513 (class 1259 OID 90755)
+-- Name: idx_historia_fecha_apertura; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_historia_fecha_apertura ON public.historia_clinica USING btree (fecha_apertura);
+
+
+--
+-- TOC entry 3514 (class 1259 OID 90753)
+-- Name: idx_historia_paciente; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_historia_paciente ON public.historia_clinica USING btree (id_paciente);
+
+
+--
+-- TOC entry 3515 (class 1259 OID 90754)
+-- Name: idx_historia_situacion; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_historia_situacion ON public.historia_clinica USING btree (situacion_historia);
+
+
+--
+-- TOC entry 3516 (class 1259 OID 90756)
+-- Name: idx_medicacion_historia; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_medicacion_historia ON public.paciente_medicacion USING btree (id_historia);
+
+
+--
+-- TOC entry 3525 (class 2606 OID 90743)
+-- Name: historia_clinica fk_historia_especialista_actualizacion; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.historia_clinica
+    ADD CONSTRAINT fk_historia_especialista_actualizacion FOREIGN KEY (especialista_actualizacion) REFERENCES public.especialista(id_especialista);
+
+
+--
+-- TOC entry 3526 (class 2606 OID 90738)
+-- Name: historia_clinica fk_historia_especialista_apertura; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.historia_clinica
+    ADD CONSTRAINT fk_historia_especialista_apertura FOREIGN KEY (especialista_apertura) REFERENCES public.especialista(id_especialista);
+
+
+--
+-- TOC entry 3527 (class 2606 OID 90733)
+-- Name: historia_clinica fk_historia_paciente; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.historia_clinica
+    ADD CONSTRAINT fk_historia_paciente FOREIGN KEY (id_paciente) REFERENCES public.paciente(id_paciente);
+
+
+--
+-- TOC entry 3528 (class 2606 OID 90748)
+-- Name: paciente_medicacion fk_medicacion_historia; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.paciente_medicacion
+    ADD CONSTRAINT fk_medicacion_historia FOREIGN KEY (id_historia) REFERENCES public.historia_clinica(id_historia);
+
+
+-- Completed on 2025-11-26 19:18:41 -05
+
+--
+-- PostgreSQL database dump complete
+--
+

@@ -1,5 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import HistoriaClinicaForm from '$lib/components/forms/HistoriaClinicaForm.svelte';
 
 	let { data } = $props();
@@ -16,24 +17,34 @@
 	let historia = $state(data.historia);
 	let medicaciones = $state(data.medicaciones || []);
 
-	// Parsear hábitos personales
+	// Obtener hábitos personales (ya viene como objeto desde JSONB)
 	let habitosPersonales = $derived.by(() => {
 		if (!historia.habitos_personales) return null;
-		try {
-			return JSON.parse(historia.habitos_personales);
-		} catch {
-			return null;
+		// Si viene como string (datos antiguos), parsear
+		if (typeof historia.habitos_personales === 'string') {
+			try {
+				return JSON.parse(historia.habitos_personales);
+			} catch {
+				return null;
+			}
 		}
+		// Si ya es objeto (JSONB correcto), retornar directamente
+		return historia.habitos_personales;
 	});
 
-	// Parsear antecedentes familiares
+	// Obtener antecedentes familiares (ya viene como objeto desde JSONB)
 	let antecedentesFamiliares = $derived.by(() => {
 		if (!historia.antecedentes_familiares) return null;
-		try {
-			return JSON.parse(historia.antecedentes_familiares);
-		} catch {
-			return null;
+		// Si viene como string (datos antiguos), parsear
+		if (typeof historia.antecedentes_familiares === 'string') {
+			try {
+				return JSON.parse(historia.antecedentes_familiares);
+			} catch {
+				return null;
+			}
 		}
+		// Si ya es objeto (JSONB correcto), retornar directamente
+		return historia.antecedentes_familiares;
 	});
 
 	async function handleSubmit(formData) {
@@ -55,8 +66,10 @@
 			if (result.success) {
 				successMessage = 'Historia clínica actualizada exitosamente';
 				isEditing = false;
-				// Recargar la página para obtener datos actualizados
-				setTimeout(() => window.location.reload(), 1500);
+				// Recargar datos del servidor sin recargar toda la página
+				await invalidateAll();
+				// Actualizar el estado local con los datos frescos
+				historia = data.historia;
 			} else {
 				error = result.error || 'Error al actualizar historia clínica';
 			}
@@ -104,7 +117,8 @@
 			if (result.success) {
 				showCierreTemporalModal = false;
 				successMessage = 'Historia clínica cerrada temporalmente';
-				setTimeout(() => window.location.reload(), 1500);
+				await invalidateAll();
+				historia = data.historia;
 			} else {
 				error = result.error || 'Error al cerrar temporalmente';
 			}
@@ -142,7 +156,8 @@
 			if (result.success) {
 				showCierreDefinitivoModal = false;
 				successMessage = 'Historia clínica cerrada definitivamente';
-				setTimeout(() => window.location.reload(), 1500);
+				await invalidateAll();
+				historia = data.historia;
 			} else {
 				error = result.error || 'Error al cerrar definitivamente';
 			}
@@ -179,7 +194,8 @@
 			if (result.success) {
 				showReabrirModal = false;
 				successMessage = 'Historia clínica reabierta exitosamente';
-				setTimeout(() => window.location.reload(), 1500);
+				await invalidateAll();
+				historia = data.historia;
 			} else {
 				error = result.error || 'Error al reabrir historia clínica';
 			}

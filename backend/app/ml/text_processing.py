@@ -4,7 +4,6 @@ Funciones reutilizables para limpiar y normalizar texto.
 """
 
 import re
-from typing import List
 
 
 def clean_text(text: str) -> str:
@@ -16,7 +15,18 @@ def clean_text(text: str) -> str:
 
     Returns:
         Texto limpio
+
+    Raises:
+        TypeError: Si el texto no es un string
     """
+    # Validación de entrada
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
+    if not text.strip():
+        return ""
+
     # Convertir a minúsculas
     text = text.lower()
 
@@ -33,47 +43,3 @@ def clean_text(text: str) -> str:
     text = text.strip()
 
     return text
-
-
-def batch_clean_texts(texts: List[str]) -> List[str]:
-    """
-    Limpia múltiples textos en batch.
-
-    Args:
-        texts: Lista de textos a limpiar
-
-    Returns:
-        Lista de textos limpios
-    """
-    return [clean_text(text) for text in texts]
-
-
-def remove_special_characters(text: str, keep_chars: str = '') -> str:
-    """
-    Elimina caracteres especiales, opcionalmente manteniendo algunos.
-
-    Args:
-        text: Texto a procesar
-        keep_chars: Caracteres especiales a mantener (ej: ".,!?")
-
-    Returns:
-        Texto sin caracteres especiales
-    """
-    pattern = f'[^a-záéíóúñü0-9\\s{re.escape(keep_chars)}]'
-    return re.sub(pattern, '', text, flags=re.IGNORECASE)
-
-
-def normalize_whitespace(text: str) -> str:
-    """
-    Normaliza espacios en blanco.
-
-    Args:
-        text: Texto a normalizar
-
-    Returns:
-        Texto con espacios normalizados
-    """
-    # Reemplazar múltiples espacios con uno solo
-    text = re.sub(r'\s+', ' ', text)
-    # Eliminar espacios al inicio y final
-    return text.strip()

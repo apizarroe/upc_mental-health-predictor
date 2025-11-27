@@ -1,6 +1,6 @@
 """
-Encoder BERT para convertir texto en embeddings vectoriales.
-Utiliza un modelo BERT multilingüe pre-entrenado.
+Encoder Transformer para convertir texto en embeddings vectoriales.
+Soporta modelos BERT, RoBERTa y otros transformers de Hugging Face.
 """
 
 import torch
@@ -10,21 +10,21 @@ from typing import List
 from tqdm import tqdm
 
 
-class BERTEncoder:
-    """Codificador BERT para extraer embeddings de texto."""
+class TransformerEncoder:
+    """Codificador Transformer para extraer embeddings de texto."""
 
     def __init__(
         self,
-        model_name: str = "dccuchile/bert-base-spanish-wwm-cased",
+        model_name: str = "PlanTL-GOB-ES/roberta-base-biomedical-es",
         max_length: int = 512,
         batch_size: int = 16,
         device: str = None
     ):
         """
-        Inicializa el encoder BERT.
+        Inicializa el encoder Transformer.
 
         Args:
-            model_name: Nombre del modelo BERT a usar
+            model_name: Nombre del modelo Transformer a usar (BERT, RoBERTa, etc.)
             max_length: Longitud máxima de tokens
             batch_size: Tamaño del batch para procesamiento
             device: Dispositivo (cuda/cpu), auto-detecta si es None
@@ -39,18 +39,22 @@ class BERTEncoder:
         else:
             self.device = torch.device(device)
 
-        print(f"🔧 Inicializando BERT Encoder...")
+        print(f"🔧 Inicializando Transformer Encoder...")
         print(f"   • Modelo: {model_name}")
         print(f"   • Dispositivo: {self.device}")
         print(f"   • Max length: {max_length}")
 
         # Cargar tokenizer y modelo
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        # Usar safetensors para evitar vulnerabilidad CVE-2025-32434 en torch.load
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            use_safetensors=True  # Forzar uso de safetensors
+        )
         self.model.to(self.device)
         self.model.eval()  # Modo evaluación
 
-        print("✅ Modelo BERT cargado exitosamente!")
+        print("✅ Modelo Transformer cargado exitosamente!")
 
     def encode_texts(
         self,
@@ -76,7 +80,7 @@ class BERTEncoder:
         if show_progress:
             iterator = tqdm(
                 iterator,
-                desc="Generando embeddings BERT",
+                desc="Generando embeddings",
                 total=n_batches
             )
 
@@ -141,7 +145,7 @@ class BERTEncoder:
 
 if __name__ == "__main__":
     # Ejemplo de uso
-    encoder = BERTEncoder()
+    encoder = TransformerEncoder()
 
     # Textos de ejemplo
     texts = [

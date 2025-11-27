@@ -8,9 +8,9 @@ import * as authService from '$lib/server/services/auth.js';
 export async function load({ cookies }) {
 	const sessionCookie = cookies.get('session');
 
-	// Si no hay cookie de sesión, redirigir a login
+	// Si no hay cookie de sesión, redirigir a login de especialistas
 	if (!sessionCookie) {
-		throw redirect(303, '/login');
+		throw redirect(303, '/login/especialista');
 	}
 
 	try {
@@ -24,7 +24,7 @@ export async function load({ cookies }) {
 		if (minutosTranscurridos > 30) {
 			// Sesión expirada
 			cookies.delete('session', { path: '/' });
-			throw redirect(303, '/login?expired=true');
+			throw redirect(303, '/login/especialista?expired=true');
 		}
 
 		// Verificar que el usuario sigue activo
@@ -32,7 +32,7 @@ export async function load({ cookies }) {
 
 		if (!user) {
 			cookies.delete('session', { path: '/' });
-			throw redirect(303, '/login?invalid=true');
+			throw redirect(303, '/login/especialista?invalid=true');
 		}
 
 		// Renovar sesión actualizando el tiempo de actividad
@@ -55,6 +55,6 @@ export async function load({ cookies }) {
 			throw error; // Re-throw redirect
 		}
 		cookies.delete('session', { path: '/' });
-		throw redirect(303, '/login');
+		throw redirect(303, '/login/especialista');
 	}
 }

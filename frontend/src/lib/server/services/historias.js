@@ -49,6 +49,19 @@ export async function getHistoriaByPacienteId(idPaciente) {
 }
 
 export async function createHistoria(data) {
+	// Convertir campos JSONB a JSON si vienen como objetos
+	const antecedentesFamiliares = data.antecedentes_familiares
+		? (typeof data.antecedentes_familiares === 'string'
+			? data.antecedentes_familiares
+			: JSON.stringify(data.antecedentes_familiares))
+		: null;
+
+	const habitosPersonales = data.habitos_personales
+		? (typeof data.habitos_personales === 'string'
+			? data.habitos_personales
+			: JSON.stringify(data.habitos_personales))
+		: null;
+
 	const [historia] = await sql`
 		INSERT INTO historia_clinica (
 			id_paciente,
@@ -69,9 +82,9 @@ export async function createHistoria(data) {
 			${data.especialista_apertura},
 			${data.servicio_origen || null},
 			${data.antecedentes_personales || null},
-			${data.antecedentes_familiares || null},
+			${antecedentesFamiliares}::jsonb,
 			${data.antecedentes_psicosociales || null},
-			${data.habitos_personales || null},
+			${habitosPersonales}::jsonb,
 			${data.situacion_familiar || null},
 			${data.situacion_laboral || null},
 			${data.evaluacion_inicial || null},
@@ -103,7 +116,16 @@ export async function updateHistoria(id, data, idEspecialista) {
 
 	for (const field of allowedFields) {
 		if (data[field] !== undefined) {
-			updates[field] = data[field];
+			// Convertir campos JSONB si vienen como objetos
+			if (field === 'antecedentes_familiares' || field === 'habitos_personales') {
+				if (typeof data[field] === 'object' && data[field] !== null) {
+					updates[field] = JSON.stringify(data[field]);
+				} else {
+					updates[field] = data[field];
+				}
+			} else {
+				updates[field] = data[field];
+			}
 		}
 	}
 

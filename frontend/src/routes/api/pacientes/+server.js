@@ -9,10 +9,12 @@ import * as pacientesService from '$lib/server/services/pacientes.js';
 export async function GET() {
 	try {
 		const pacientes = await pacientesService.getAllPacientes();
+		const pacientesConHistoria = await pacientesService.getPacientesConHistoriaClinica();
 
 		return json({
 			success: true,
 			data: pacientes,
+			pacientesConHistoria: pacientesConHistoria,
 			count: pacientes.length
 		});
 	} catch (error) {

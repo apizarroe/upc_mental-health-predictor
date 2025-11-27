@@ -5,7 +5,8 @@
 
 export const ROLES = {
 	ADMIN: 'admin',
-	ESPECIALISTA: 'especialista'
+	ESPECIALISTA: 'especialista',
+	PACIENTE: 'paciente'
 };
 
 export const PERMISSIONS = {
@@ -57,12 +58,16 @@ const rolePermissions = {
 		PERMISSIONS.HISTORIAS_CREATE,
 		PERMISSIONS.HISTORIAS_UPDATE,
 		PERMISSIONS.HISTORIAS_DELETE
+	],
+	[ROLES.PACIENTE]: [
+		// Paciente solo tiene acceso a una página de bienvenida
+		// Sin permisos adicionales
 	]
 };
 
 /**
  * Verifica si un usuario tiene un permiso específico
- * @param {string} userRole - Rol del usuario (admin | especialista)
+ * @param {string} userRole - Rol del usuario (admin | especialista | paciente)
  * @param {string} permission - Permiso a verificar
  * @returns {boolean}
  */

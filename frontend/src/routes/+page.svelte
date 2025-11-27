@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
-	let usuario = $state('');
+	let dni = $state('');
 	let password = $state('');
 	let isLoading = $state(false);
 	let error = $state('');
@@ -22,7 +22,7 @@
 		e.preventDefault();
 		error = '';
 
-		if (!usuario || !password) {
+		if (!dni || !password) {
 			error = 'Por favor complete todos los campos';
 			return;
 		}
@@ -30,19 +30,19 @@
 		try {
 			isLoading = true;
 
-			const response = await fetch('/api/auth/login', {
+			const response = await fetch('/api/auth/login-paciente', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ usuario, password })
+				body: JSON.stringify({ dni, password })
 			});
 
 			const result = await response.json();
 
 			if (result.success) {
-				// Redirigir al dashboard
-				goto('/');
+				// Redirigir al área de pacientes
+				goto('/paciente');
 			} else {
 				error = result.error || 'Error al iniciar sesión';
 			}
@@ -56,7 +56,7 @@
 </script>
 
 <svelte:head>
-	<title>Iniciar Sesión - Sistema de Salud Mental</title>
+	<title>Portal de Pacientes - Sistema de Salud Mental</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -67,13 +67,13 @@
 			<div class="px-8 pt-8 pb-6 text-center" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
 				<div class="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);">
 					<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 					</svg>
 				</div>
 				<h1 class="text-3xl font-bold mb-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-					Centro de Salud Mental
+					Portal de Pacientes
 				</h1>
-				<p class="text-gray-600">Sistema de Gestión de Pacientes</p>
+				<p class="text-gray-600">Centro de Salud Mental</p>
 			</div>
 
 			<!-- Form -->
@@ -91,27 +91,30 @@
 						</div>
 					{/if}
 
-					<!-- Usuario -->
+					<!-- DNI -->
 					<div>
-						<label for="usuario" class="block text-sm font-semibold text-gray-700 mb-2">
-							Usuario
+						<label for="dni" class="block text-sm font-semibold text-gray-700 mb-2">
+							DNI
 						</label>
 						<div class="relative">
 							<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
 								<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
 								</svg>
 							</div>
 							<input
 								type="text"
-								id="usuario"
-								bind:value={usuario}
+								id="dni"
+								bind:value={dni}
 								disabled={isLoading}
-								placeholder="Ingrese su usuario"
+								placeholder="Ingrese su DNI"
 								class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
 								required
+								pattern="[0-9]+"
+								maxlength="12"
 							/>
 						</div>
+						<p class="mt-1 text-xs text-gray-500">Solo números, sin espacios ni guiones</p>
 					</div>
 
 					<!-- Contraseña -->
@@ -157,7 +160,7 @@
 					<button
 						type="submit"
 						disabled={isLoading}
-						class="w-full py-3 px-4 rounded-lg font-semibold text-white shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="w-full py-3 px-4 rounded-lg font-semibold text-white shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transform hover:-translate-y-0.5"
 						style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
 					>
 						{#if isLoading}
@@ -176,15 +179,26 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="px-8 py-4 bg-gray-50 text-center text-sm text-gray-600">
-				<p>¿Olvidó su contraseña? Contacte al administrador</p>
+			<div class="px-8 py-4 bg-gray-50 text-center space-y-2">
+				<p class="text-sm text-gray-600">¿Olvidó su contraseña? Contacte al centro de atención</p>
+				<div class="pt-2 border-t border-gray-200">
+					<a
+						href="/login/especialista"
+						class="inline-flex items-center text-purple-600 hover:text-purple-700 font-semibold text-sm transition-colors"
+					>
+						<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+						</svg>
+						Ingrese como Especialista
+					</a>
+				</div>
 			</div>
 		</div>
 
 		<!-- Info -->
 		<div class="mt-6 text-center text-white text-sm">
-			<p>Sistema de Gestión de Salud Mental</p>
-			<p class="mt-1 opacity-80">Acceso restringido solo para personal autorizado</p>
+			<p class="font-medium">Portal de Pacientes</p>
+			<p class="mt-1 opacity-80">Acceda a su información médica y resultados de evaluaciones</p>
 		</div>
 	</div>
 </div>

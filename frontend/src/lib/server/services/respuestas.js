@@ -1,0 +1,233 @@
+import sql from '../db/client.js';
+
+/**
+ * Verifica si el paciente ya completó el cuestionario 2 veces hoy (GMT-5 Lima/Peru)
+ * @param {number} idPaciente - ID del paciente
+ * @returns {Promise<boolean>} - true si ya completó 2 veces hoy, false si aún puede responder
+ */
+export async function yaRespondioDobleHoy(idPaciente) {
+	// Usar la hora actual del servidor y convertirla a GMT-5 Lima/Peru
+	const ahora = new Date();
+
+	// Convertir a hora de Lima usando toLocaleString
+	const ahoraLimaStr = ahora.toLocaleString('en-US', { timeZone: 'America/Lima' });
+	const ahoraLima = new Date(ahoraLimaStr);
+
+	// Obtener inicio del día en Lima (00:00:00)
+	const inicioDiaLima = new Date(ahoraLima);
+	inicioDiaLima.setHours(0, 0, 0, 0);
+
+	// Obtener fin del día en Lima (23:59:59)
+	const finDiaLima = new Date(ahoraLima);
+	finDiaLima.setHours(23, 59, 59, 999);
+
+	const [result] = await sql`
+		SELECT COUNT(*) as count
+		FROM paciente_respuesta
+		WHERE id_paciente = ${idPaciente}
+		AND fecha_respuesta >= ${inicioDiaLima.toISOString()}
+		AND fecha_respuesta <= ${finDiaLima.toISOString()}
+	`;
+
+	return parseInt(result.count) >= 2;
+}
+
+/**
+ * Obtiene todas las respuestas de un paciente
+ * @param {number} idPaciente - ID del paciente
+ * @returns {Promise<Array>} - Array de respuestas
+ */
+export async function getRespuestasByPaciente(idPaciente) {
+	const respuestas = await sql`
+		SELECT
+			pr.*,
+			em.trastornos_detectados,
+			em.condiciones_detectadas,
+			em.nivel_riesgo_global,
+			em.interpretacion,
+			em.requiere_atencion
+		FROM paciente_respuesta pr
+		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_paciente = ${idPaciente}
+		ORDER BY pr.fecha_respuesta DESC
+	`;
+	return respuestas;
+}
+
+/**
+ * Obtiene las respuestas del día actual (GMT-5 Lima/Peru)
+ * @param {number} idPaciente - ID del paciente
+ * @returns {Promise<Array>} - Array de respuestas del día
+ */
+export async function getRespuestasDelDia(idPaciente) {
+	// Usar la hora actual del servidor y convertirla a GMT-5 Lima/Peru
+	const ahora = new Date();
+
+	// Convertir a hora de Lima usando toLocaleString
+	const ahoraLimaStr = ahora.toLocaleString('en-US', { timeZone: 'America/Lima' });
+	const ahoraLima = new Date(ahoraLimaStr);
+
+	// Obtener inicio del día en Lima (00:00:00)
+	const inicioDiaLima = new Date(ahoraLima);
+	inicioDiaLima.setHours(0, 0, 0, 0);
+
+	// Obtener fin del día en Lima (23:59:59)
+	const finDiaLima = new Date(ahoraLima);
+	finDiaLima.setHours(23, 59, 59, 999);
+
+	const respuestas = await sql`
+		SELECT
+			pr.*,
+			em.trastornos_detectados,
+			em.condiciones_detectadas,
+			em.nivel_riesgo_global,
+			em.interpretacion,
+			em.requiere_atencion
+		FROM paciente_respuesta pr
+		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_paciente = ${idPaciente}
+		AND pr.fecha_respuesta >= ${inicioDiaLima.toISOString()}
+		AND pr.fecha_respuesta <= ${finDiaLima.toISOString()}
+		ORDER BY pr.fecha_respuesta DESC
+	`;
+
+	console.log(`📋 Historial del día (Paciente ${idPaciente}): ${respuestas.length} respuesta(s) encontrada(s)`);
+
+	return respuestas;
+}
+
+/**
+ * Obtiene una respuesta por su ID
+ * @param {number} idRespuesta - ID de la respuesta
+ * @returns {Promise<Object|null>} - Respuesta encontrada o null
+ */
+export async function getRespuestaById(idRespuesta) {
+	const [respuesta] = await sql`
+		SELECT
+			pr.*,
+			em.trastornos_detectados,
+			em.condiciones_detectadas,
+			em.nivel_riesgo_global,
+			em.interpretacion,
+			em.requiere_atencion,
+			em.palabras_clave,
+			em.metricas_modelo
+		FROM paciente_respuesta pr
+		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_respuesta = ${idRespuesta}
+	`;
+	return respuesta;
+}
+
+/**
+ * Crea una nueva respuesta del paciente
+ * @param {Object} data - Datos de la respuesta
+ * @returns {Promise<Object>} - Respuesta creada
+ */
+export async function createRespuesta(data) {
+	// PostgreSQL con postgres.js acepta objetos JavaScript directamente para JSONB
+	// No necesitamos hacer JSON.stringify
+	const [respuesta] = await sql`
+		INSERT INTO paciente_respuesta (
+			id_paciente,
+			respuestas,
+			estado_procesamiento
+		) VALUES (
+			${data.id_paciente},
+			${sql.json(data.respuestas)},
+			'pendiente'
+		)
+		RETURNING *
+	`;
+	return respuesta;
+}
+
+/**
+ * Actualiza el estado de procesamiento de una respuesta
+ * @param {number} idRespuesta - ID de la respuesta
+ * @param {string} estado - Nuevo estado: 'pendiente', 'procesado', 'error'
+ * @param {number|null} idEvaluacion - ID de la evaluación ML (si fue procesado)
+ * @param {string|null} errorMensaje - Mensaje de error (si hubo error)
+ * @returns {Promise<Object>} - Respuesta actualizada
+ */
+export async function updateEstadoRespuesta(idRespuesta, estado, idEvaluacion = null, errorMensaje = null) {
+	const [respuesta] = await sql`
+		UPDATE paciente_respuesta
+		SET
+			estado_procesamiento = ${estado},
+			id_evaluacion = ${idEvaluacion},
+			error_mensaje = ${errorMensaje}
+		WHERE id_respuesta = ${idRespuesta}
+		RETURNING *
+	`;
+	return respuesta;
+}
+
+/**
+ * Obtiene el historial de respuestas con paginación
+ * @param {number} idPaciente - ID del paciente
+ * @param {number} limite - Cantidad de registros por página
+ * @param {number} offset - Desplazamiento
+ * @returns {Promise<Array>} - Array de respuestas
+ */
+export async function getRespuestasPaginadas(idPaciente, limite = 10, offset = 0) {
+	const respuestas = await sql`
+		SELECT
+			pr.id_respuesta,
+			pr.fecha_respuesta,
+			pr.estado_procesamiento,
+			em.condiciones_detectadas,
+			em.nivel_riesgo_global,
+			em.requiere_atencion
+		FROM paciente_respuesta pr
+		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_paciente = ${idPaciente}
+		ORDER BY pr.fecha_respuesta DESC
+		LIMIT ${limite}
+		OFFSET ${offset}
+	`;
+	return respuestas;
+}
+
+/**
+ * Cuenta el total de respuestas de un paciente
+ * @param {number} idPaciente - ID del paciente
+ * @returns {Promise<number>} - Total de respuestas
+ */
+export async function contarRespuestas(idPaciente) {
+	const [result] = await sql`
+		SELECT COUNT(*) as count
+		FROM paciente_respuesta
+		WHERE id_paciente = ${idPaciente}
+	`;
+	return parseInt(result.count);
+}
+
+/**
+ * Obtiene el detalle completo de una respuesta con evaluación ML
+ * @param {number} idRespuesta - ID de la respuesta
+ * @returns {Promise<Object>} - Respuesta con evaluación ML completa
+ */
+export async function getRespuestaDetalle(idRespuesta) {
+	const [respuesta] = await sql`
+		SELECT
+			pr.*,
+			em.id_evaluacion,
+			em.modelo_nombre,
+			em.modelo_tipo,
+			em.modelo_version,
+			em.trastornos_detectados,
+			em.condiciones_detectadas,
+			em.nivel_riesgo_global,
+			em.interpretacion,
+			em.requiere_atencion,
+			em.palabras_clave,
+			em.metricas_modelo,
+			em.fecha_evaluacion
+		FROM paciente_respuesta pr
+		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_respuesta = ${idRespuesta}
+	`;
+
+	return respuesta;
+}

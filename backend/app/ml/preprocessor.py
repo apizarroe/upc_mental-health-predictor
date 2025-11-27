@@ -1,23 +1,45 @@
 """
 Preprocesador de texto para conversaciones de salud mental.
 Extrae y limpia el texto de las conversaciones para el modelo BERT.
+Soporta detección multi-etiqueta (depresión y ansiedad).
 """
 
 import pandas as pd
-import re
-from typing import List, Dict, Tuple
+import numpy as np
+from typing import List, Dict, Tuple, Union
+
+from .text_processing import clean_text as _clean_text
 
 
 class TextPreprocessor:
-    """Preprocesa conversaciones de chat para análisis de depresión."""
+    """Preprocesa conversaciones de chat para análisis de trastornos mentales."""
 
     def __init__(self):
-        """Inicializa el preprocesador."""
+        """Inicializa el preprocesador con keywords para cada trastorno."""
+        # Keywords específicas para depresión
         self.depression_keywords = [
-            'triste', 'deprimido', 'ansiedad', 'estrés', 'abrumado',
-            'soledad', 'desesperanza', 'cansado', 'agotado', 'insomnio',
-            'sad', 'depressed', 'anxiety', 'stress', 'overwhelmed',
-            'lonely', 'hopeless', 'tired', 'exhausted', 'insomnia'
+            'triste', 'deprimido', 'depresión', 'desesperanza', 'desesperado',
+            'vacío', 'soledad', 'solo', 'aislado', 'llorar', 'lloro',
+            'culpa', 'inútil', 'fracaso', 'muerte', 'morir', 'suicidio',
+            'cansado', 'agotado', 'fatiga', 'energía', 'motivación',
+            'sad', 'depressed', 'depression', 'hopeless', 'desperate',
+            'empty', 'lonely', 'alone', 'isolated', 'cry', 'crying',
+            'guilt', 'worthless', 'failure', 'death', 'die',
+            'tired', 'exhausted', 'fatigue', 'energy', 'motivation'
+        ]
+
+        # Keywords específicas para ansiedad
+        self.anxiety_keywords = [
+            'ansiedad', 'ansioso', 'nervioso', 'nerviosismo', 'pánico',
+            'preocupado', 'preocupación', 'miedo', 'temor', 'fobia',
+            'tensión', 'tenso', 'inquieto', 'agitado', 'estrés', 'estresado',
+            'palpitaciones', 'sudor', 'temblor', 'respiración', 'abrumado',
+            'insomnio', 'dormir',
+            'anxiety', 'anxious', 'nervous', 'nervousness', 'panic',
+            'worried', 'worry', 'fear', 'phobia',
+            'tension', 'tense', 'restless', 'agitated', 'stress', 'stressed',
+            'palpitations', 'sweat', 'trembling', 'breathing', 'overwhelmed',
+            'insomnia', 'sleep'
         ]
 
     def load_parquet(self, file_path: str) -> pd.DataFrame:
@@ -54,6 +76,7 @@ class TextPreprocessor:
     def clean_text(self, text: str) -> str:
         """
         Limpia el texto eliminando caracteres especiales y normalizando espacios.
+        Delega a la función centralizada en text_processing.
 
         Args:
             text: Texto a limpiar
@@ -61,27 +84,32 @@ class TextPreprocessor:
         Returns:
             Texto limpio
         """
-        # Convertir a minúsculas
-        text = text.lower()
+        return _clean_text(text)
 
-        # Eliminar URLs
-        text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
+    def _detect_condition_indicators(
+        self,
+        text: str,
+        keywords: List[str],
+        threshold: int = 2
+    ) -> int:
+        """
+        Detecta indicadores de una condición en el texto usando keywords.
 
-        # Eliminar emails
-        text = re.sub(r'\S+@\S+', '', text)
+        Args:
+            text: Texto a analizar
+            keywords: Lista de keywords a buscar
+            threshold: Número mínimo de keywords para considerar positivo
 
-        # Normalizar espacios múltiples
-        text = re.sub(r'\s+', ' ', text)
-
-        # Eliminar espacios al inicio y final
-        text = text.strip()
-
-        return text
+        Returns:
+            1 si detecta indicadores (>= threshold keywords), 0 si no
+        """
+        text_lower = text.lower()
+        keyword_count = sum(1 for keyword in keywords if keyword in text_lower)
+        return 1 if keyword_count >= threshold else 0
 
     def detect_depression_indicators(self, text: str) -> int:
         """
         Detecta indicadores de depresión en el texto usando keywords.
-        Esta es una etiqueta inicial simple que puede refinarse.
 
         Args:
             text: Texto a analizar
@@ -89,29 +117,74 @@ class TextPreprocessor:
         Returns:
             1 si detecta indicadores de depresión, 0 si no
         """
+        return self._detect_condition_indicators(text, self.depression_keywords)
+
+    def detect_anxiety_indicators(self, text: str) -> int:
+        """
+        Detecta indicadores de ansiedad en el texto usando keywords.
+
+        Args:
+            text: Texto a analizar
+
+        Returns:
+            1 si detecta indicadores de ansiedad, 0 si no
+        """
+        return self._detect_condition_indicators(text, self.anxiety_keywords)
+
+    def detect_multi_label(self, text: str) -> List[int]:
+        """
+        Detecta múltiples indicadores (depresión y ansiedad) en el texto.
+
+        Args:
+            text: Texto a analizar
+
+        Returns:
+            Lista [depression, anxiety] con valores 0 o 1
+        """
+        depression = self.detect_depression_indicators(text)
+        anxiety = self.detect_anxiety_indicators(text)
+        return [depression, anxiety]
+
+    def get_matched_keywords(self, text: str) -> Dict[str, List[str]]:
+        """
+        Retorna las keywords encontradas para cada trastorno.
+
+        Args:
+            text: Texto a analizar
+
+        Returns:
+            Diccionario con keywords encontradas por trastorno
+        """
         text_lower = text.lower()
 
-        # Contar keywords de depresión
-        keyword_count = sum(
-            1 for keyword in self.depression_keywords
-            if keyword in text_lower
-        )
+        depression_matches = [
+            kw for kw in self.depression_keywords if kw in text_lower
+        ]
+        anxiety_matches = [
+            kw for kw in self.anxiety_keywords if kw in text_lower
+        ]
 
-        # Si encuentra 2 o más keywords, considera que hay indicadores
-        return 1 if keyword_count >= 2 else 0
+        return {
+            'depression': depression_matches,
+            'anxiety': anxiety_matches
+        }
 
     def process_conversations(
         self,
-        df: pd.DataFrame
-    ) -> Tuple[List[str], List[int]]:
+        df: pd.DataFrame,
+        multi_label: bool = False
+    ) -> Tuple[List[str], Union[List[int], np.ndarray]]:
         """
         Procesa todas las conversaciones del DataFrame.
 
         Args:
             df: DataFrame con columna 'chat' conteniendo conversaciones
+            multi_label: Si True, retorna etiquetas multi-label [dep, anx]
 
         Returns:
-            Tupla de (textos procesados, etiquetas de depresión)
+            Tupla de (textos procesados, etiquetas)
+            - Si multi_label=False: etiquetas es List[int] (solo depresión)
+            - Si multi_label=True: etiquetas es np.ndarray shape (N, 2)
         """
         texts = []
         labels = []
@@ -125,8 +198,11 @@ class TextPreprocessor:
             # Limpiar texto
             cleaned_text = self.clean_text(user_text)
 
-            # Detectar depresión (etiqueta simple)
-            label = self.detect_depression_indicators(cleaned_text)
+            # Detectar indicadores
+            if multi_label:
+                label = self.detect_multi_label(cleaned_text)
+            else:
+                label = self.detect_depression_indicators(cleaned_text)
 
             texts.append(cleaned_text)
             labels.append(label)
@@ -135,20 +211,37 @@ class TextPreprocessor:
                 print(f"Procesadas {idx + 1}/{len(df)} conversaciones...")
 
         print(f"\n✅ Total procesado: {len(texts)} conversaciones")
-        print(f"   • Con indicadores de depresión: {sum(labels)}")
-        print(f"   • Sin indicadores: {len(labels) - sum(labels)}")
 
-        return texts, labels
+        if multi_label:
+            labels_array = np.array(labels)
+            depression_count = labels_array[:, 0].sum()
+            anxiety_count = labels_array[:, 1].sum()
+            both_count = ((labels_array[:, 0] == 1) & (labels_array[:, 1] == 1)).sum()
+            neither_count = ((labels_array[:, 0] == 0) & (labels_array[:, 1] == 0)).sum()
+
+            print(f"   📊 Distribución de etiquetas:")
+            print(f"   • Solo Depresión: {depression_count - both_count} ({(depression_count - both_count)/len(labels)*100:.1f}%)")
+            print(f"   • Solo Ansiedad: {anxiety_count - both_count} ({(anxiety_count - both_count)/len(labels)*100:.1f}%)")
+            print(f"   • Ambos: {both_count} ({both_count/len(labels)*100:.1f}%)")
+            print(f"   • Ninguno: {neither_count} ({neither_count/len(labels)*100:.1f}%)")
+
+            return texts, labels_array
+        else:
+            print(f"   • Con indicadores de depresión: {sum(labels)}")
+            print(f"   • Sin indicadores: {len(labels) - sum(labels)}")
+            return texts, labels
 
     def create_dataset(
         self,
-        file_path: str
-    ) -> Tuple[List[str], List[int]]:
+        file_path: str,
+        multi_label: bool = False
+    ) -> Tuple[List[str], Union[List[int], np.ndarray]]:
         """
         Pipeline completo: carga y procesa el dataset.
 
         Args:
             file_path: Ruta al archivo parquet
+            multi_label: Si True, retorna etiquetas multi-label [dep, anx]
 
         Returns:
             Tupla de (textos, etiquetas)
@@ -159,7 +252,7 @@ class TextPreprocessor:
         df = self.load_parquet(file_path)
 
         # Procesar conversaciones
-        texts, labels = self.process_conversations(df)
+        texts, labels = self.process_conversations(df, multi_label=multi_label)
 
         print("\n✅ Dataset preparado exitosamente!")
 
@@ -171,9 +264,19 @@ if __name__ == "__main__":
     preprocessor = TextPreprocessor()
 
     file_path = "../../data/datasets/train-00000-of-00001.parquet"
-    texts, labels = preprocessor.create_dataset(file_path)
 
-    # Mostrar ejemplo
-    print("\n📝 Ejemplo de datos procesados:")
-    print(f"Texto: {texts[0][:200]}...")
+    # Ejemplo con etiquetas simples (solo depresión)
+    print("\n" + "=" * 60)
+    print("📝 MODO SIMPLE (solo depresión)")
+    print("=" * 60)
+    texts, labels = preprocessor.create_dataset(file_path, multi_label=False)
+    print(f"Texto: {texts[0][:100]}...")
     print(f"Etiqueta (depresión): {labels[0]}")
+
+    # Ejemplo con multi-label
+    print("\n" + "=" * 60)
+    print("📝 MODO MULTI-ETIQUETA (depresión + ansiedad)")
+    print("=" * 60)
+    texts, labels = preprocessor.create_dataset(file_path, multi_label=True)
+    print(f"Texto: {texts[0][:100]}...")
+    print(f"Etiquetas [depresión, ansiedad]: {labels[0]}")

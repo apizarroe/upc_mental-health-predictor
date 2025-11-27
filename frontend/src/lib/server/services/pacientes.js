@@ -17,6 +17,18 @@ export async function getAllPacientes() {
 }
 
 /**
+ * Obtener IDs de pacientes que tienen historia clínica
+ * Para performance, solo retorna los IDs
+ */
+export async function getPacientesConHistoriaClinica() {
+	const pacientes = await sql`
+		SELECT DISTINCT id_paciente
+		FROM historia_clinica
+	`;
+	return pacientes.map(p => p.id_paciente);
+}
+
+/**
  * Obtener un paciente por ID
  */
 export async function getPacienteById(id) {

@@ -1,72 +1,72 @@
 <script>
 	let { historia = null, onSubmit = () => {}, isLoading = false, submitLabel = 'Guardar', isNew = false } = $props();
 
-	// Función para parsear hábitos personales desde JSON string a objeto
-	function parseHabitos(habitosString) {
-		if (!habitosString) {
-			return {
-				alcohol: '',
-				alcohol_frecuencia: '',
-				tabaco: '',
-				tabaco_frecuencia: '',
-				drogas: '',
-				drogas_frecuencia: '',
-				sueño_horas: '',
-				sueño_calidad: '',
-				alimentacion: '',
-				ejercicio: '',
-				otros: ''
-			};
+	// Función para parsear hábitos personales (acepta string o objeto)
+	function parseHabitos(habitos) {
+		const defaultHabitos = {
+			alcohol: '',
+			alcohol_frecuencia: '',
+			tabaco: '',
+			tabaco_frecuencia: '',
+			drogas: '',
+			drogas_frecuencia: '',
+			sueño_horas: '',
+			sueño_calidad: '',
+			alimentacion: '',
+			ejercicio: '',
+			otros: ''
+		};
+
+		if (!habitos) return defaultHabitos;
+
+		// Si ya es un objeto (JSONB), retornarlo directamente
+		if (typeof habitos === 'object') {
+			return { ...defaultHabitos, ...habitos };
 		}
-		try {
-			return JSON.parse(habitosString);
-		} catch {
-			return {
-				alcohol: '',
-				alcohol_frecuencia: '',
-				tabaco: '',
-				tabaco_frecuencia: '',
-				drogas: '',
-				drogas_frecuencia: '',
-				sueño_horas: '',
-				sueño_calidad: '',
-				alimentacion: '',
-				ejercicio: '',
-				otros: ''
-			};
+
+		// Si es string (datos antiguos), parsear
+		if (typeof habitos === 'string') {
+			try {
+				return { ...defaultHabitos, ...JSON.parse(habitos) };
+			} catch {
+				return defaultHabitos;
+			}
 		}
+
+		return defaultHabitos;
 	}
 
-	// Función para parsear antecedentes familiares desde JSON string a objeto
-	function parseAntecedentesFamiliares(antecedentesString) {
-		if (!antecedentesString) {
-			return {
-				depresion: false,
-				ansiedad: false,
-				bipolaridad: false,
-				esquizofrenia: false,
-				tdah: false,
-				toc: false,
-				adicciones: false,
-				suicidio: false,
-				otros: ''
-			};
+	// Función para parsear antecedentes familiares (acepta string o objeto)
+	function parseAntecedentesFamiliares(antecedentes) {
+		const defaultAntecedentes = {
+			depresion: false,
+			ansiedad: false,
+			bipolaridad: false,
+			esquizofrenia: false,
+			tdah: false,
+			toc: false,
+			adicciones: false,
+			suicidio: false,
+			otros: ''
+		};
+
+		if (!antecedentes) return defaultAntecedentes;
+
+		// Si ya es un objeto (JSONB), retornarlo directamente
+		if (typeof antecedentes === 'object') {
+			return { ...defaultAntecedentes, ...antecedentes };
 		}
-		try {
-			return JSON.parse(antecedentesString);
-		} catch {
-			return {
-				depresion: false,
-				ansiedad: false,
-				bipolaridad: false,
-				esquizofrenia: false,
-				tdah: false,
-				toc: false,
-				adicciones: false,
-				suicidio: false,
-				otros: ''
-			};
+
+		// Si es string (datos antiguos), parsear
+		if (typeof antecedentes === 'string') {
+			try {
+				return { ...defaultAntecedentes, ...JSON.parse(antecedentes) };
+			} catch {
+				return defaultAntecedentes;
+			}
 		}
+
+		return defaultAntecedentes;
 	}
 
 	// Datos del formulario
@@ -145,11 +145,12 @@
 	function handleSubmit(e) {
 		e.preventDefault();
 		if (validateForm()) {
-			// Convertir hábitos personales y antecedentes familiares a JSON string
+			// Enviar hábitos personales y antecedentes familiares como objetos
+			// PostgreSQL JSONB los almacenará correctamente
 			const dataToSubmit = {
 				...formData,
-				habitos_personales: JSON.stringify(habitosPersonales),
-				antecedentes_familiares: JSON.stringify(antecedentesFamiliares)
+				habitos_personales: habitosPersonales,
+				antecedentes_familiares: antecedentesFamiliares
 			};
 			onSubmit(dataToSubmit);
 		}
