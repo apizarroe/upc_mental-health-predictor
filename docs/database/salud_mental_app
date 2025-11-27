@@ -5,7 +5,7 @@
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.0
 
--- Started on 2025-11-26 19:18:41 -05
+-- Started on 2025-11-26 20:50:20 -05
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -44,7 +44,8 @@ CREATE TABLE public.especialista (
     ultimo_acceso timestamp without time zone,
     intentos_fallidos integer DEFAULT 0,
     bloqueado_hasta timestamp without time zone,
-    flg_activo boolean DEFAULT true
+    flg_activo boolean DEFAULT true,
+    password_cambiado_en timestamp without time zone
 );
 
 
@@ -248,7 +249,8 @@ CREATE TABLE public.paciente (
     intentos_fallidos integer DEFAULT 0,
     bloqueado_hasta timestamp without time zone,
     fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    flg_activo boolean DEFAULT true
+    flg_activo boolean DEFAULT true,
+    password_cambiado_en timestamp without time zone
 );
 
 
@@ -430,9 +432,9 @@ ALTER TABLE ONLY public.paciente_respuesta ALTER COLUMN id_respuesta SET DEFAULT
 -- Data for Name: especialista; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.especialista (id_especialista, dni, nombres, apellidos, especialidad, colegiatura, correo, telefono, cargo, usuario, password_hash, rol, ultimo_acceso, intentos_fallidos, bloqueado_hasta, flg_activo) FROM stdin;
-1	12345678	María	González Pérez	Psicóloga Clínica	CPsP12345	mgonzalez@centro.com	987654321	Psicóloga Senior	mgonzalez	$2a$10$JesoGqxHvlJ3/F/5NzF.H.TDUl7xT.At0qqNKoL4L1TCCLgkO1i8u	admin	2025-11-25 18:49:01.625148	0	\N	t
-2	23456789	Carlos	Ramírez Torres	Psiquiatra	CMP23456	cramirez@centro.com	987654322	Psiquiatra	cramirez	$2a$10$7H9dY06fzkEAbeffjDMj1O3NeeB7.XWufcSInLeIEAap0cWHAfZoG	especialista	2025-11-26 14:36:58.749928	0	\N	t
+COPY public.especialista (id_especialista, dni, nombres, apellidos, especialidad, colegiatura, correo, telefono, cargo, usuario, password_hash, rol, ultimo_acceso, intentos_fallidos, bloqueado_hasta, flg_activo, password_cambiado_en) FROM stdin;
+1	12345678	María	González Pérez	Psicóloga Clínica	CPsP12345	mgonzalez@centro.com	987654321	Psicóloga Senior	mgonzalez	$2b$10$llRFeu0mp/s4/Dy0YcBhjeTxhDebqCT17CkGy3O4EYRA9fD3vApy.	admin	2025-11-26 20:44:00.937139	0	\N	t	2025-11-26 20:44:09.419437
+2	23456789	Carlos	Ramírez Torres	Psiquiatra	CMP23456	cramirez@centro.com	987654322	Psiquiatra	cramirez	$2a$10$7H9dY06fzkEAbeffjDMj1O3NeeB7.XWufcSInLeIEAap0cWHAfZoG	especialista	2025-11-26 14:36:58.749928	0	\N	t	2025-11-26 20:44:09.419437
 \.
 
 
@@ -474,10 +476,11 @@ COPY public.historia_clinica (id_historia, id_paciente, fecha_apertura, especial
 -- Data for Name: paciente; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.paciente (id_paciente, dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, password_hash, ultimo_acceso, intentos_fallidos, bloqueado_hasta, fecha_registro, flg_activo) FROM stdin;
-2	43678787	Nancy	Huaman Espinoza	1959-12-13	F	Calle 32 Mz P2 Lt 77	987177288	ncyhuaman@hotmail.com	Alejandro Huaman	922309302	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	\N	0	\N	2025-11-25 18:39:50.69523	f
-1	43837903	Aldo	Pizarro Espinoza	1990-01-01	M	Jr. Los Olivos 456	947299051	apizarro_13@hotmail.com	Pedro González	933300010	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 13:22:26.271662	0	\N	2025-11-25 18:38:51.746213	t
-3	07090809	Rene	Ortiz Ccarita	1980-01-23	M	Los Gorriones 225	989789998	rortizc@gmail.com	Luis Suarez	967878878	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 13:23:41.482059	0	\N	2025-11-25 18:41:39.828211	t
+COPY public.paciente (id_paciente, dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, password_hash, ultimo_acceso, intentos_fallidos, bloqueado_hasta, fecha_registro, flg_activo, password_cambiado_en) FROM stdin;
+2	43678787	Nancy	Huaman Espinoza	1959-12-13	F	Calle 32 Mz P2 Lt 77	987177288	ncyhuaman@hotmail.com	Alejandro Huaman	922309302	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	\N	0	\N	2025-11-25 18:39:50.69523	f	2025-11-26 20:44:09.419437
+3	07090809	Rene	Ortiz Ccarita	1980-01-23	M	Los Gorriones 225	989789998	rortizc@gmail.com	Luis Suarez	967878878	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 13:23:41.482059	0	\N	2025-11-25 18:41:39.828211	t	2025-11-26 20:44:09.419437
+4	07099123	Maria	Perez Ramirez	1975-02-01	F	Jr Ica 200, El Agustino	933009202	mramirez@hotmail.com	Eduardo Linares	978789290	$2b$10$eIlFioYdMvo.8.aSlwU1BeNAR4zceUz4N8HyZu/nOS.6QrEnweEF2	2025-11-26 20:46:34.755572	0	\N	2025-11-26 20:46:16.411845	t	2025-11-26 20:47:26.560823
+1	43837903	Aldo	Pizarro Espinoza	1990-01-01	M	Jr. Los Olivos 456	947299051	apizarro_13@hotmail.com	Pedro González	933300010	$2a$10$mli9Gl0yUfhAkHZPxeBBgOqxj9LsqBG4cDpBqg8BK6jBN7eYSMfMG	2025-11-26 20:48:06.637312	0	\N	2025-11-25 18:38:51.746213	t	2025-11-26 20:44:09.419437
 \.
 
 
@@ -546,7 +549,7 @@ SELECT pg_catalog.setval('public.historia_clinica_id_historia_seq', 1, true);
 -- Name: paciente_id_paciente_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.paciente_id_paciente_seq', 3, true);
+SELECT pg_catalog.setval('public.paciente_id_paciente_seq', 4, true);
 
 
 --
@@ -716,7 +719,7 @@ ALTER TABLE ONLY public.paciente_medicacion
     ADD CONSTRAINT fk_medicacion_historia FOREIGN KEY (id_historia) REFERENCES public.historia_clinica(id_historia);
 
 
--- Completed on 2025-11-26 19:18:41 -05
+-- Completed on 2025-11-26 20:50:20 -05
 
 --
 -- PostgreSQL database dump complete
