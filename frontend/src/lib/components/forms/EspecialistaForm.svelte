@@ -10,7 +10,8 @@
 		colegiatura: especialista?.colegiatura || '',
 		correo: especialista?.correo || '',
 		telefono: especialista?.telefono || '',
-		cargo: especialista?.cargo || ''
+		cargo: especialista?.cargo || '',
+		rol: especialista?.rol || 'especialista'
 	};
 
 	let errors = $state({});
@@ -130,6 +131,7 @@
 			errors.correo = 'Correo inválido';
 		}
 		if (!formData.cargo) errors.cargo = 'Cargo es requerido';
+		if (!formData.rol) errors.rol = 'Rol es requerido';
 
 		return Object.keys(errors).length === 0;
 	}
@@ -181,7 +183,7 @@
 		</div>
 	</div>
 
-	<!-- Apellidos y Especialidad -->
+	<!-- Apellidos y Rol -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<div>
 			<label for="apellidos" class="block text-sm font-medium text-gray-700 mb-1">
@@ -202,23 +204,43 @@
 		</div>
 
 		<div>
-			<label for="especialidad" class="block text-sm font-medium text-gray-700 mb-1">
-				Especialidad <span class="text-red-500">*</span>
+			<label for="rol" class="block text-sm font-medium text-gray-700 mb-1">
+				Rol <span class="text-red-500">*</span>
 			</label>
-			<input
-				type="text"
-				id="especialidad"
-				bind:value={formData.especialidad}
-				maxlength="50"
-				placeholder="Ej: Psicólogo Clínico, Psiquiatra"
+			<select
+				id="rol"
+				bind:value={formData.rol}
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-				class:border-red-500={errors.especialidad}
+				class:border-red-500={errors.rol}
 				disabled={isLoading}
-			/>
-			{#if errors.especialidad}
-				<p class="text-red-500 text-sm mt-1">{errors.especialidad}</p>
+			>
+				<option value="especialista">Especialista</option>
+				<option value="admin">Admin</option>
+			</select>
+			{#if errors.rol}
+				<p class="text-red-500 text-sm mt-1">{errors.rol}</p>
 			{/if}
 		</div>
+	</div>
+
+	<!-- Especialidad -->
+	<div>
+		<label for="especialidad" class="block text-sm font-medium text-gray-700 mb-1">
+			Especialidad <span class="text-red-500">*</span>
+		</label>
+		<input
+			type="text"
+			id="especialidad"
+			bind:value={formData.especialidad}
+			maxlength="50"
+			placeholder="Ej: Psicólogo Clínico, Psiquiatra"
+			class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+			class:border-red-500={errors.especialidad}
+			disabled={isLoading}
+		/>
+		{#if errors.especialidad}
+			<p class="text-red-500 text-sm mt-1">{errors.especialidad}</p>
+		{/if}
 	</div>
 
 	<!-- Colegiatura y Cargo -->

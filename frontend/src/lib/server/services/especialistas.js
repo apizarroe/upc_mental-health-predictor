@@ -34,6 +34,7 @@ export async function getEspecialistaById(id) {
  * - flg_activo (true)
  * - password_hash (DNI hasheado con bcrypt)
  * - password_cambiado_en (NULL - para forzar cambio en primer login)
+ * - rol (por defecto 'especialista' si no se especifica)
  */
 export async function createEspecialista(data) {
 	// Hashear el DNI como contraseña por defecto
@@ -50,6 +51,7 @@ export async function createEspecialista(data) {
 			correo,
 			telefono,
 			cargo,
+			rol,
 			password_hash,
 			flg_activo
 		) VALUES (
@@ -61,6 +63,7 @@ export async function createEspecialista(data) {
 			${data.correo}::varchar,
 			${data.telefono}::varchar,
 			${data.cargo}::varchar,
+			${data.rol || 'especialista'}::varchar,
 			${passwordHash}::varchar,
 			true
 		)
@@ -85,6 +88,7 @@ export async function updateEspecialista(id, data) {
 		'correo',
 		'telefono',
 		'cargo',
+		'rol',
 		'flg_activo'
 	];
 

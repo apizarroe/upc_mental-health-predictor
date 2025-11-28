@@ -166,6 +166,18 @@
 							<p class="mt-1 text-gray-900">{especialista.dni}</p>
 						</div>
 						<div>
+							<label class="text-sm font-medium text-gray-500">Rol</label>
+							<p class="mt-1">
+								<span
+									class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {especialista.rol === 'admin'
+										? 'bg-purple-100 text-purple-800'
+										: 'bg-blue-100 text-blue-800'}"
+								>
+									{especialista.rol === 'admin' ? 'Admin' : 'Especialista'}
+								</span>
+							</p>
+						</div>
+						<div>
 							<label class="text-sm font-medium text-gray-500">Estado</label>
 							<p class="mt-1">
 								<span
