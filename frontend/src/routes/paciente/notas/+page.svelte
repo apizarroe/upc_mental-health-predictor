@@ -1,4 +1,6 @@
 <script>
+	import AudioRecorder from '$lib/components/AudioRecorder.svelte';
+
 	let { data } = $props();
 
 	let formData = $state({
@@ -10,6 +12,7 @@
 
 	let isSaving = $state(false);
 	let message = $state({ type: '', text: '' });
+	let isVoiceMode = $state(false);
 
 	// Función para contar palabras
 	function contarPalabras(texto) {
@@ -66,6 +69,16 @@
 		};
 		message = { type: '', text: '' };
 	}
+
+	function toggleVoiceMode() {
+		isVoiceMode = !isVoiceMode;
+		// Limpiar mensajes al cambiar de modo
+		message = { type: '', text: '' };
+	}
+
+	function handleTranscription(questionKey, transcription) {
+		formData[questionKey] = transcription;
+	}
 </script>
 
 <svelte:head>
@@ -81,15 +94,26 @@
 				<p class="text-white/80">Comparte tus pensamientos y emociones del día</p>
 			</div>
 			{#if data.tieneHistoriaClinica}
-				<button
-					onclick={() => window.location.href = '/paciente/notas/historial'}
-					class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-					</svg>
-					Ver Historial
-				</button>
+				<div class="flex gap-3">
+					<button
+						onclick={toggleVoiceMode}
+						class="px-4 py-2 {isVoiceMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-white/10 hover:bg-white/20'} text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+					>
+						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
+						</svg>
+						{isVoiceMode ? 'Modo Voz Activo' : 'Activar Modo Voz'}
+					</button>
+					<button
+						onclick={() => window.location.href = '/paciente/notas/historial'}
+						class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+						Ver Historial
+					</button>
+				</div>
 			{/if}
 		</div>
 
@@ -173,16 +197,23 @@
 						<label for="question1" class="block text-sm font-semibold text-gray-700 mb-3">
 							1. ¿Cómo fue tu día hoy?
 						</label>
-						<textarea
-							id="question1"
-							bind:value={formData.question1}
-							rows="4"
-							placeholder="Cuéntame cómo fue tu día... ¿Qué cosas hiciste? ¿Cómo te sentiste?"
-							class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-						></textarea>
-						<div class="mt-1 text-sm {getWordCount('question1') >= 10 ? 'text-green-600' : 'text-gray-500'}">
-							{getWordCount('question1')} palabras {#if getWordCount('question1') < 10}(mínimo 10){/if}
-						</div>
+						{#if isVoiceMode}
+							<AudioRecorder
+								questionId="question1"
+								onTranscriptionComplete={(text) => handleTranscription('question1', text)}
+							/>
+						{:else}
+							<textarea
+								id="question1"
+								bind:value={formData.question1}
+								rows="4"
+								placeholder="Cuéntame cómo fue tu día... ¿Qué cosas hiciste? ¿Cómo te sentiste?"
+								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+							></textarea>
+							<div class="mt-1 text-sm {getWordCount('question1') >= 10 ? 'text-green-600' : 'text-gray-500'}">
+								{getWordCount('question1')} palabras {#if getWordCount('question1') < 10}(mínimo 10){/if}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Pregunta 2 -->
@@ -190,16 +221,23 @@
 						<label for="question2" class="block text-sm font-semibold text-gray-700 mb-3">
 							2. ¿Cómo te sientes en este momento?
 						</label>
-						<textarea
-							id="question2"
-							bind:value={formData.question2}
-							rows="4"
-							placeholder="Comparte cómo te sientes en este momento... ¿Hay algo que te preocupe o te haga feliz?"
-							class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-						></textarea>
-						<div class="mt-1 text-sm {getWordCount('question2') >= 10 ? 'text-green-600' : 'text-gray-500'}">
-							{getWordCount('question2')} palabras {#if getWordCount('question2') < 10}(mínimo 10){/if}
-						</div>
+						{#if isVoiceMode}
+							<AudioRecorder
+								questionId="question2"
+								onTranscriptionComplete={(text) => handleTranscription('question2', text)}
+							/>
+						{:else}
+							<textarea
+								id="question2"
+								bind:value={formData.question2}
+								rows="4"
+								placeholder="Comparte cómo te sientes en este momento... ¿Hay algo que te preocupe o te haga feliz?"
+								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+							></textarea>
+							<div class="mt-1 text-sm {getWordCount('question2') >= 10 ? 'text-green-600' : 'text-gray-500'}">
+								{getWordCount('question2')} palabras {#if getWordCount('question2') < 10}(mínimo 10){/if}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Pregunta 3 -->
@@ -207,16 +245,23 @@
 						<label for="question3" class="block text-sm font-semibold text-gray-700 mb-3">
 							3. ¿Cómo describirías tu estado de ánimo?
 						</label>
-						<textarea
-							id="question3"
-							bind:value={formData.question3}
-							rows="4"
-							placeholder="Cuéntame sobre tu estado de ánimo... ¿Has notado cambios en cómo te sientes últimamente?"
-							class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-						></textarea>
-						<div class="mt-1 text-sm {getWordCount('question3') >= 10 ? 'text-green-600' : 'text-gray-500'}">
-							{getWordCount('question3')} palabras {#if getWordCount('question3') < 10}(mínimo 10){/if}
-						</div>
+						{#if isVoiceMode}
+							<AudioRecorder
+								questionId="question3"
+								onTranscriptionComplete={(text) => handleTranscription('question3', text)}
+							/>
+						{:else}
+							<textarea
+								id="question3"
+								bind:value={formData.question3}
+								rows="4"
+								placeholder="Cuéntame sobre tu estado de ánimo... ¿Has notado cambios en cómo te sientes últimamente?"
+								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+							></textarea>
+							<div class="mt-1 text-sm {getWordCount('question3') >= 10 ? 'text-green-600' : 'text-gray-500'}">
+								{getWordCount('question3')} palabras {#if getWordCount('question3') < 10}(mínimo 10){/if}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Pregunta 4 -->
@@ -224,16 +269,23 @@
 						<label for="question4" class="block text-sm font-semibold text-gray-700 mb-3">
 							4. ¿Qué situaciones has experimentado hoy?
 						</label>
-						<textarea
-							id="question4"
-							bind:value={formData.question4}
-							rows="4"
-							placeholder="Dime qué cosas te han ayudado o dificultado hoy... ¿Hubo algo que te generó estrés o alegría?"
-							class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-						></textarea>
-						<div class="mt-1 text-sm {getWordCount('question4') >= 10 ? 'text-green-600' : 'text-gray-500'}">
-							{getWordCount('question4')} palabras {#if getWordCount('question4') < 10}(mínimo 10){/if}
-						</div>
+						{#if isVoiceMode}
+							<AudioRecorder
+								questionId="question4"
+								onTranscriptionComplete={(text) => handleTranscription('question4', text)}
+							/>
+						{:else}
+							<textarea
+								id="question4"
+								bind:value={formData.question4}
+								rows="4"
+								placeholder="Dime qué cosas te han ayudado o dificultado hoy... ¿Hubo algo que te generó estrés o alegría?"
+								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+							></textarea>
+							<div class="mt-1 text-sm {getWordCount('question4') >= 10 ? 'text-green-600' : 'text-gray-500'}">
+								{getWordCount('question4')} palabras {#if getWordCount('question4') < 10}(mínimo 10){/if}
+							</div>
+						{/if}
 					</div>
 				</div>
 
