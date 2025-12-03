@@ -15,7 +15,7 @@ os.environ['MKL_NUM_THREADS'] = '4'
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.api.routes import prediction, health
+from app.api.routes import prediction, health, transcription
 import sys
 from pathlib import Path
 
@@ -88,6 +88,12 @@ app.include_router(
     tags=["Health"]
 )
 
+app.include_router(
+    transcription.router,
+    prefix="/api/v1",
+    tags=["Transcription"]
+)
+
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -108,7 +114,9 @@ async def root():
         "endpoints": {
             "health": "/api/v1/health",
             "predict": "/api/v1/predict/depression",
-            "model_info": "/api/v1/model/info"
+            "model_info": "/api/v1/model/info",
+            "transcribe": "/api/v1/transcribe",
+            "transcribe_info": "/api/v1/transcribe/info"
         }
     }
 
