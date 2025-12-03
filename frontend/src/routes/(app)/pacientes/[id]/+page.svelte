@@ -1,15 +1,16 @@
 <script>
 	import { goto } from '$app/navigation';
-	import PatientForm from '$lib/components/forms/PatientForm.svelte';
+	import PacienteForm from '$lib/components/forms/PacienteForm.svelte';
 
-	export let data;
+	let { data } = $props();
 
-	let isLoading = false;
-	let error = null;
-	let isEditing = false;
-	let successMessage = null;
+	let isLoading = $state(false);
+	let error = $state(null);
+	let isEditing = $state(false);
+	let successMessage = $state(null);
+	let showStatusModal = $state(false);
 
-	$: paciente = data.paciente;
+	let paciente = $state(data.paciente);
 
 	async function handleSubmit(formData) {
 		try {
@@ -45,6 +46,55 @@
 		}
 	}
 
+	function confirmStatusChange() {
+		showStatusModal = true;
+	}
+
+	async function togglePacienteStatus() {
+		try {
+			isLoading = true;
+			error = null;
+			successMessage = null;
+
+			const nuevoEstado = !paciente.flg_activo;
+
+			const response = await fetch(`/api/pacientes/${paciente.id_paciente}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					flg_activo: nuevoEstado
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				paciente = result.data;
+				showStatusModal = false;
+				successMessage = `Paciente ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`;
+
+				if (!nuevoEstado && result.historiaClinicaCerrada) {
+					successMessage += '. La historia clínica ha sido cerrada temporalmente.';
+				}
+
+				setTimeout(() => {
+					successMessage = null;
+				}, 5000);
+			} else {
+				showStatusModal = false;
+				error = result.error || 'Error al cambiar estado del paciente';
+			}
+		} catch (err) {
+			showStatusModal = false;
+			error = 'Error de conexión con el servidor';
+			console.error(err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
 	function formatDate(dateString) {
 		const date = new Date(dateString);
 		return date.toLocaleDateString('es-PE', {
@@ -71,29 +121,14 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-	<!-- Header -->
+	<!-- Back button -->
 	<div class="mb-8">
 		<button
-			on:click={() => goto('/pacientes')}
-			class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+			onclick={() => goto('/pacientes')}
+			class="text-white hover:text-white/80 mb-4 inline-flex items-center"
 		>
 			← Volver a la lista
 		</button>
-		<div class="flex justify-between items-start">
-			<div>
-				<h1 class="text-3xl font-bold text-gray-900">
-					{paciente.nombres}
-					{paciente.apellidos}
-				</h1>
-				<p class="mt-2 text-gray-600">Información del paciente</p>
-			</div>
-			<button
-				on:click={() => (isEditing = !isEditing)}
-				class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-			>
-				{isEditing ? 'Cancelar Edición' : 'Editar'}
-			</button>
-		</div>
 	</div>
 
 	<!-- Success message -->
@@ -111,10 +146,37 @@
 	{/if}
 
 	<div class="bg-white shadow-md rounded-lg overflow-hidden">
+		<!-- Header dentro de la tarjeta -->
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<div class="flex justify-between items-start gap-4">
+				<div class="flex-1 min-w-0">
+					<h1 class="text-2xl font-bold text-gray-900 break-words">
+						{paciente.nombres}
+						{paciente.apellidos}
+					</h1>
+					<p class="mt-1 text-gray-600">Información del paciente</p>
+				</div>
+				<div class="flex gap-2 flex-shrink-0">
+					<button
+						onclick={() => (isEditing = !isEditing)}
+						class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+					>
+						{isEditing ? 'Cancelar Edición' : 'Editar'}
+					</button>
+					<button
+						onclick={confirmStatusChange}
+						class="px-4 py-2 {paciente.flg_activo ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md transition-colors whitespace-nowrap"
+					>
+						{paciente.flg_activo ? 'Desactivar' : 'Activar'}
+					</button>
+				</div>
+			</div>
+		</div>
+
 		{#if isEditing}
 			<!-- Modo Edición -->
 			<div class="p-6">
-				<PatientForm patient={paciente} onSubmit={handleSubmit} {isLoading} submitLabel="Guardar Cambios" />
+				<PacienteForm patient={paciente} onSubmit={handleSubmit} {isLoading} submitLabel="Guardar Cambios" />
 			</div>
 		{:else}
 			<!-- Modo Vista -->
@@ -211,3 +273,63 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Modal de confirmación de cambio de estado -->
+{#if showStatusModal}
+	<div class="fixed inset-0 bg-neutral-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+		<div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+			<div class="flex items-center mb-4">
+				<div class="flex-shrink-0 w-12 h-12 rounded-full {paciente.flg_activo ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center">
+					{#if paciente.flg_activo}
+						<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+					{:else}
+						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					{/if}
+				</div>
+				<h3 class="ml-4 text-lg font-semibold text-neutral-900">
+					{paciente.flg_activo ? 'Desactivar Paciente' : 'Activar Paciente'}
+				</h3>
+			</div>
+
+			<p class="text-sm text-neutral-600 mb-2">
+				¿Está seguro que desea {paciente.flg_activo ? 'desactivar' : 'activar'} al paciente <strong class="text-neutral-900">{paciente.nombres} {paciente.apellidos}</strong>?
+			</p>
+
+			{#if paciente.flg_activo}
+				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+					<div class="flex">
+						<svg class="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+						<p class="text-sm text-yellow-800">
+							<strong>Advertencia:</strong> Si el paciente tiene una Historia Clínica Activa, esta cambiará automáticamente al estado "Cierre Temporal".
+						</p>
+					</div>
+				</div>
+			{/if}
+
+			<div class="flex gap-3 justify-end">
+				<button
+					onclick={() => {
+						showStatusModal = false;
+					}}
+					class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+					disabled={isLoading}
+				>
+					Cancelar
+				</button>
+				<button
+					onclick={togglePacienteStatus}
+					class="px-4 py-2 {paciente.flg_activo ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md transition-colors"
+					disabled={isLoading}
+				>
+					{isLoading ? 'Procesando...' : (paciente.flg_activo ? 'Desactivar' : 'Activar')}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

@@ -15,16 +15,19 @@ Microservicio Python especializado en predicción de trastornos mentales usando 
 backend/
 ├── app/
 │   ├── api/            # Endpoints FastAPI
-│   ├── models/         # Implementación de modelos ML
+│   ├── models/         # Modelos de base de datos (SQLAlchemy, Pydantic)
+│   ├── ml/             # Código de Machine Learning (BERT, XGBoost, pipelines)
 │   ├── services/       # Lógica de negocio
 │   ├── utils/          # Utilidades
 │   ├── config/         # Configuración
-│   └── main.py         # Punto de entrada
+│   └── main.py         # Punto de entrada FastAPI
+├── scripts/            # Scripts CLI ejecutables
+│   ├── train.py        # Entrenamiento de modelos
+│   └── test.py         # Validación de modelos
 ├── data/
-│   ├── trained_models/ # Modelos entrenados
-│   └── datasets/       # Datasets
-├── scripts/            # Scripts auxiliares
-└── tests/              # Tests
+│   ├── trained_models/ # Modelos entrenados (.pkl, .json)
+│   └── datasets/       # Datasets (parquet, csv)
+└── tests/              # Tests unitarios
 ```
 
 ## Instalación
@@ -88,17 +91,117 @@ ruff check --fix .
 mypy app/
 ```
 
-## Scripts Disponibles
+## 🧠 Entrenamiento de Modelos
+
+Para entrenar nuevos modelos BERT + XGBoost desde cero, consulta la guía detallada:
+
+👉 **[Guía de Entrenamiento](docs/TRAINING_GUIDE.md)**
+
+### Opción recomendada: Scripts wrapper (configuran todo automáticamente)
 
 ```bash
-# Entrenar modelos
-python scripts/train_models.py
+cd backend
 
-# Descargar modelos pre-entrenados
-python scripts/download_models.py
+# Entrenamiento básico (configura variables de entorno automáticamente)
+./run_training.sh
 
-# Evaluar modelos
-python scripts/evaluate_models.py
+# Con parámetros personalizados
+./run_training.sh --bert-model bert-base-multilingual-cased --n-estimators 200
+```
+
+### Opción manual: Ejecutar directamente
+
+```bash
+cd backend
+source .venv/bin/activate
+
+# Entrenamiento básico
+python scripts/train.py
+
+# Ver todas las opciones
+python scripts/train.py --help
+```
+
+Una vez entrenados, los modelos se guardan en `data/trained_models/` y están disponibles automáticamente para la API.
+
+**⚠️ Nota para macOS**: Si el script se queda colgado al finalizar, presiona `Ctrl+C`. El modelo ya fue guardado correctamente.
+
+## ✅ Validación de Modelos
+
+Después de entrenar, valida que el modelo funciona correctamente:
+
+### Opción recomendada: Script wrapper
+
+```bash
+cd backend
+
+# Testear 5 conversaciones aleatorias (default)
+./run_testing.sh
+
+# Testear 10 conversaciones aleatorias
+./run_testing.sh --random 10
+
+# Evaluación completa del dataset por defecto
+./run_testing.sh --full-test
+
+# Evaluación completa de un dataset específico
+./run_testing.sh --full-test --data-path data/datasets/mi_dataset.parquet
+
+# Testear conversaciones específicas
+./run_testing.sh --indices 0 5 10 15
+```
+
+### Opción manual: Ejecutar directamente
+
+```bash
+cd backend
+source .venv/bin/activate
+
+# Testear conversaciones aleatorias desde Parquet (usa dataset por defecto)
+python scripts/test.py --random 10
+
+# Testear desde archivo CSV
+python scripts/test.py --csv --data-path data/datasets/example_patient_messages.csv
+
+# Testear texto personalizado
+python scripts/test.py --text "Me siento muy triste y sin energía"
+
+# Evaluación completa del dataset por defecto (data/datasets/train-00000-of-00001.parquet)
+python scripts/test.py --full-test
+
+# Evaluación completa de un dataset específico
+python scripts/test.py --full-test --data-path data/datasets/mi_dataset.parquet
+
+# Testear conversaciones específicas por índice
+python scripts/test.py --indices 0 5 10 15
+
+# Ver todas las opciones
+python scripts/test.py --help
+```
+
+**Formatos soportados:**
+- **Parquet**: Dataset original con conversaciones JSON
+- **CSV**: Archivos CSV con columna de sesión (ver `data/datasets/example_patient_messages.csv`)
+
+El script muestra:
+- 📊 Probabilidades de depresión
+- 🎯 Predicción del modelo
+- 🔍 Comparación con heurística de keywords
+- 📈 Métricas (accuracy, precision, recall, F1)
+- ⚠️ Análisis de falsos positivos/negativos
+
+## Scripts CLI Disponibles
+
+```bash
+# Entrenar modelo BERT + XGBoost
+python scripts/train.py
+
+# Validar modelo entrenado
+python scripts/test.py
+
+# Wrappers automáticos (recomendado)
+./run_training.sh  # Configura entorno y entrena
+./run_testing.sh   # Configura entorno y valida
 ```
 
 ## Endpoints Principales
