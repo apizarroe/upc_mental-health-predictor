@@ -116,55 +116,27 @@
 								</div>
 							</div>
 
-							<!-- Resultados de la evaluación (si existe) -->
-							{#if respuesta.trastornos_detectados}
-								<div class="mb-4 p-4 bg-gray-50 rounded-lg">
-									<h4 class="text-sm font-semibold text-gray-700 mb-2">Evaluación ML</h4>
-
-									<div class="grid grid-cols-2 gap-4">
-										{#if respuesta.trastornos_detectados.depression}
-											<div class="bg-white p-3 rounded">
-												<div class="text-xs text-gray-500 mb-1">Depresión</div>
-												<div class="flex items-baseline gap-2">
-													<span class="text-2xl font-bold {respuesta.trastornos_detectados.depression.has_condition ? 'text-orange-600' : 'text-green-600'}">
-														{Math.round(respuesta.trastornos_detectados.depression.probability * 100)}%
-													</span>
-													<span class="text-xs text-gray-500">
-														{respuesta.trastornos_detectados.depression.has_condition ? 'Detectada' : 'No detectada'}
-													</span>
-												</div>
-											</div>
-										{/if}
-
-										{#if respuesta.trastornos_detectados.anxiety}
-											<div class="bg-white p-3 rounded">
-												<div class="text-xs text-gray-500 mb-1">Ansiedad</div>
-												<div class="flex items-baseline gap-2">
-													<span class="text-2xl font-bold {respuesta.trastornos_detectados.anxiety.has_condition ? 'text-orange-600' : 'text-green-600'}">
-														{Math.round(respuesta.trastornos_detectados.anxiety.probability * 100)}%
-													</span>
-													<span class="text-xs text-gray-500">
-														{respuesta.trastornos_detectados.anxiety.has_condition ? 'Detectada' : 'No detectada'}
-													</span>
-												</div>
-											</div>
-										{/if}
+							<!-- Mensaje informativo -->
+							<div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+								<div class="flex items-start gap-3">
+									<svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									<div>
+										<h4 class="text-sm font-semibold text-blue-900 mb-1">Respuesta registrada exitosamente</h4>
+										<p class="text-sm text-blue-700">
+											Tu respuesta ha sido procesada. Los resultados de la evaluación son confidenciales y solo están disponibles para tu especialista.
+										</p>
 									</div>
-
-									{#if respuesta.interpretacion}
-										<div class="mt-3 text-sm text-gray-700 italic">
-											"{respuesta.interpretacion}"
-										</div>
-									{/if}
 								</div>
-							{/if}
+							</div>
 
 							<!-- Botón ver detalle -->
 							<button
 								onclick={() => verDetalle(respuesta)}
 								class="w-full px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold rounded-lg transition-colors"
 							>
-								Ver respuestas completas
+								Ver mis respuestas
 							</button>
 						</div>
 					</div>

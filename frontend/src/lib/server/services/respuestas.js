@@ -60,21 +60,43 @@ export async function getRespuestasByPaciente(idPaciente) {
  * @returns {Promise<Array>} - Array de respuestas del día
  */
 export async function getRespuestasDelDia(idPaciente) {
-	// Usar la hora actual del servidor y convertirla a GMT-5 Lima/Peru
+	// IMPORTANTE: PostgreSQL guarda los timestamps en la zona horaria del servidor (GMT-5 Lima)
+	// Por lo tanto, debemos comparar con fechas en la misma zona horaria
+
+	// Obtener la fecha/hora actual en UTC
 	const ahora = new Date();
 
-	// Convertir a hora de Lima usando toLocaleString
-	const ahoraLimaStr = ahora.toLocaleString('en-US', { timeZone: 'America/Lima' });
-	const ahoraLima = new Date(ahoraLimaStr);
+	// Obtener componentes de fecha en zona horaria Lima (GMT-5)
+	const partes = new Intl.DateTimeFormat('en-US', {
+		timeZone: 'America/Lima',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).formatToParts(ahora);
 
-	// Obtener inicio del día en Lima (00:00:00)
-	const inicioDiaLima = new Date(ahoraLima);
-	inicioDiaLima.setHours(0, 0, 0, 0);
+	// Extraer valores
+	const fecha = {};
+	partes.forEach(({ type, value }) => {
+		fecha[type] = value;
+	});
 
-	// Obtener fin del día en Lima (23:59:59)
-	const finDiaLima = new Date(ahoraLima);
-	finDiaLima.setHours(23, 59, 59, 999);
+	const year = fecha.year;
+	const month = fecha.month;
+	const day = fecha.day;
 
+	// Construir fecha en formato 'YYYY-MM-DD'
+	const fechaHoy = `${year}-${month}-${day}`;
+
+	console.log(`🕐 Buscando respuestas del día (hora Lima GMT-5):`);
+	console.log(`   Fecha buscada: ${fechaHoy}`);
+	console.log(`   ID Paciente: ${idPaciente}`);
+
+	// Usar TO_CHAR para convertir la fecha a string y compararla como texto
+	// Esto evita problemas de conversión de zona horaria
 	const respuestas = await sql`
 		SELECT
 			pr.*,
@@ -86,8 +108,7 @@ export async function getRespuestasDelDia(idPaciente) {
 		FROM paciente_respuesta pr
 		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
 		WHERE pr.id_paciente = ${idPaciente}
-		AND pr.fecha_respuesta >= ${inicioDiaLima.toISOString()}
-		AND pr.fecha_respuesta <= ${finDiaLima.toISOString()}
+		AND TO_CHAR(pr.fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
 		ORDER BY pr.fecha_respuesta DESC
 	`;
 
