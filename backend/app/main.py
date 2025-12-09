@@ -7,10 +7,14 @@ usando un modelo BERT + XGBoost entrenado.
 
 # IMPORTANTE: Configurar variables de entorno ANTES de cualquier import
 # Fix para macOS: Prevenir crash por conflicto entre libiomp5 y libomp
+# PyTorch trae libiomp5.dylib que conflictúa con libomp.dylib de faster-whisper
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-os.environ['OMP_NUM_THREADS'] = '4'
-os.environ['MKL_NUM_THREADS'] = '4'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

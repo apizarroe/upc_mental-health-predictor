@@ -5,6 +5,10 @@
 	let { data } = $props();
 
 	const idPaciente = $page.params.id;
+	const idRespuesta = $page.params.idRespuesta;
+
+	let isReprocesando = $state(false);
+	let mensajeReprocesar = $state(null);
 
 	function formatearFecha(fecha) {
 		return new Date(fecha).toLocaleString('es-PE', {
@@ -28,6 +32,41 @@
 		if (nivel === 'moderado') return '🟡';
 		return '🟢';
 	}
+
+	async function reprocesarRespuesta() {
+		if (!confirm('¿Estás seguro de que deseas reprocesar esta respuesta? La evaluación actual será reemplazada.')) {
+			return;
+		}
+
+		isReprocesando = true;
+		mensajeReprocesar = null;
+
+		try {
+			const response = await fetch(`/api/respuestas/${idRespuesta}/reprocesar`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				mensajeReprocesar = { tipo: 'success', texto: 'Respuesta reprocesada exitosamente. Recargando...' };
+				// Recargar la página después de 1 segundo para ver los nuevos resultados
+				setTimeout(() => {
+					window.location.reload();
+				}, 1000);
+			} else {
+				mensajeReprocesar = { tipo: 'error', texto: result.error || 'Error al reprocesar la respuesta' };
+			}
+		} catch (error) {
+			console.error('Error al reprocesar:', error);
+			mensajeReprocesar = { tipo: 'error', texto: 'Error de conexión al reprocesar la respuesta' };
+		} finally {
+			isReprocesando = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -47,18 +86,67 @@
 				</svg>
 				Volver a Notas
 			</button>
-			<h1 class="text-3xl font-bold text-white flex items-center gap-3">
-				<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-				</svg>
-				Detalle de Nota Diaria
-			</h1>
-			<p class="mt-2 text-white/80">
-				Paciente: <span class="font-semibold">{data.paciente.nombres} {data.paciente.apellidos}</span>
-				<span class="mx-2">•</span>
-				Fecha: <span class="font-semibold">{formatearFecha(data.respuesta.fecha_respuesta)}</span>
-			</p>
+
+			<div class="flex items-start justify-between">
+				<div>
+					<h1 class="text-3xl font-bold text-white flex items-center gap-3">
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+						Detalle de Nota Diaria
+					</h1>
+					<p class="mt-2 text-white/80">
+						Paciente: <span class="font-semibold">{data.paciente.nombres} {data.paciente.apellidos}</span>
+						<span class="mx-2">•</span>
+						Fecha: <span class="font-semibold">{formatearFecha(data.respuesta.fecha_respuesta)}</span>
+					</p>
+				</div>
+
+				<!-- Botón Reprocesar -->
+				<button
+					onclick={reprocesarRespuesta}
+					disabled={isReprocesando}
+					class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/20"
+				>
+					{#if isReprocesando}
+						<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+						</svg>
+						Reprocesando...
+					{:else}
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+						</svg>
+						Reprocesar
+					{/if}
+				</button>
+			</div>
 		</div>
+
+		<!-- Mensaje de reprocesamiento -->
+		{#if mensajeReprocesar}
+			<div class="mb-6">
+				{#if mensajeReprocesar.tipo === 'success'}
+					<div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+						<div class="flex items-center gap-3">
+							<svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+							</svg>
+							<p class="text-sm font-medium text-green-800">{mensajeReprocesar.texto}</p>
+						</div>
+					</div>
+				{:else}
+					<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+						<div class="flex items-center gap-3">
+							<svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+							</svg>
+							<p class="text-sm font-medium text-red-800">{mensajeReprocesar.texto}</p>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<!-- Columna principal: Respuestas -->

@@ -196,3 +196,57 @@ export async function procesarRespuestaConML(idRespuesta, respuestas) {
 		return { success: false, error: error.message };
 	}
 }
+
+/**
+ * Reprocesa una respuesta existente con el ML
+ * Elimina la evaluación anterior y crea una nueva
+ * @param {number} idRespuesta - ID de la respuesta a reprocesar
+ * @param {Object} respuestas - Las 4 respuestas del paciente
+ * @param {Object} sessionData - Datos del especialista que solicita el reprocesamiento
+ */
+export async function reprocesarRespuestaConML(idRespuesta, respuestas, sessionData) {
+	try {
+		console.log('🔄 Iniciando reprocesamiento...');
+
+		// 1. Actualizar estado a 'pendiente' mientras se reprocesa
+		await actualizarEstadoRespuesta(idRespuesta, 'pendiente', null, null);
+
+		// 2. Eliminar evaluación anterior si existe
+		await sql`
+			DELETE FROM evaluacion_ml
+			WHERE id_respuesta = ${idRespuesta}
+		`;
+		console.log('🗑️  Evaluación anterior eliminada');
+
+		// 3. Enviar al ML
+		const mlResult = await enviarPrediccion(idRespuesta, respuestas);
+
+		// 4. Guardar nueva evaluación en BD
+		const evaluacion = await crearEvaluacionML(idRespuesta, mlResult);
+
+		// 5. Agregar nota de auditoría en la evaluación
+		const usuario = sessionData.usuario || sessionData.nombres || 'Especialista';
+		const rol = sessionData.rol || 'especialista';
+		const timestamp = new Date().toISOString();
+
+		await sql`
+			UPDATE evaluacion_ml
+			SET notas_sistema = ${`Reprocesado por ${usuario} (${rol}) el ${timestamp}`}
+			WHERE id_evaluacion = ${evaluacion.id_evaluacion}
+		`;
+
+		// 6. Actualizar estado de la respuesta
+		await actualizarEstadoRespuesta(idRespuesta, 'procesado', evaluacion.id_evaluacion);
+
+		console.log('🎉 Reprocesamiento completado exitosamente');
+		return { success: true, evaluacion };
+
+	} catch (error) {
+		console.error('❌ Error en reprocesamiento ML:', error);
+
+		// Actualizar estado a error
+		await actualizarEstadoRespuesta(idRespuesta, 'error', null, `Error al reprocesar: ${error.message}`);
+
+		return { success: false, error: error.message };
+	}
+}
