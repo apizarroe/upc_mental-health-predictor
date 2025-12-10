@@ -35,6 +35,18 @@ El servidor estará disponible en:
 
 ## 📡 Endpoints
 
+### Resumen de Endpoints
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/v1/predict/mental-health` | Predicción multi-etiqueta (depresión + ansiedad) |
+| POST | `/api/v1/predict/depression` | Predicción legacy (deprecado, usar mental-health) |
+| POST | `/api/v1/audio/transcribe` | Transcripción de audio a texto |
+| GET | `/api/v1/health` | Health check del servicio |
+| GET | `/api/v1/model/info` | Información del modelo ML cargado |
+
+---
+
 ### 1. Predicción de Salud Mental (Multi-Etiqueta)
 
 **POST** `/api/v1/predict/mental-health`
@@ -179,7 +191,74 @@ Este endpoint se mantiene por retrocompatibilidad y retorna la misma estructura 
 
 ---
 
-### 3. Health Check
+### 3. Transcripción de Audio
+
+**POST** `/api/v1/audio/transcribe`
+
+Transcribe audio a texto usando Faster-Whisper (modelo `small` optimizado para español).
+
+#### Request Body
+
+**Content-Type**: `multipart/form-data`
+
+```
+audio: archivo de audio (formatos soportados: wav, mp3, m4a, ogg, webm)
+```
+
+**Ejemplo con cURL:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/audio/transcribe" \
+  -H "accept: application/json" \
+  -F "audio=@recording.wav"
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "status": "success",
+  "transcription": "Me siento muy cansado y sin energía últimamente",
+  "language": "es",
+  "duration": 3.5,
+  "model_used": "small",
+  "timestamp": "2025-12-09T10:30:00Z"
+}
+```
+
+**Campos de respuesta:**
+- `status`: Estado de la operación ("success" o "error")
+- `transcription`: Texto transcrito del audio
+- `language`: Idioma detectado (ISO 639-1)
+- `duration`: Duración del audio en segundos
+- `model_used`: Modelo de Whisper utilizado
+- `timestamp`: Timestamp de la transcripción
+
+#### Errores posibles
+
+**400 Bad Request** - No se proporcionó archivo
+```json
+{
+  "detail": "No se proporcionó archivo de audio"
+}
+```
+
+**415 Unsupported Media Type** - Formato no soportado
+```json
+{
+  "detail": "Formato de audio no soportado. Use: wav, mp3, m4a, ogg, webm"
+}
+```
+
+**500 Internal Server Error** - Error en transcripción
+```json
+{
+  "detail": "Error al transcribir el audio: ..."
+}
+```
+
+---
+
+### 4. Health Check
 
 **GET** `/api/v1/health`
 
@@ -191,14 +270,14 @@ Verifica que el servicio esté funcionando.
 {
   "status": "healthy",
   "service": "Mental Health Predictor API",
-  "version": "1.0.0",
-  "timestamp": "2025-11-23T17:15:00Z"
+  "version": "2.0.0",
+  "timestamp": "2025-12-09T10:30:00Z"
 }
 ```
 
 ---
 
-### 4. Información del Modelo
+### 5. Información del Modelo
 
 **GET** `/api/v1/model/info`
 
@@ -302,6 +381,28 @@ fetch(url, {
     console.log('Ansiedad:', data.predictions.anxiety.has_condition);
     console.log('Prob. Ansiedad:', data.predictions.anxiety.probability);
     console.log('Interpretación:', data.summary.interpretation);
+  })
+  .catch(error => console.error('Error:', error));
+```
+
+### JavaScript - Transcripción de Audio
+
+```javascript
+const url = 'http://localhost:8000/api/v1/audio/transcribe';
+
+// Usando FormData para enviar archivo
+const formData = new FormData();
+formData.append('audio', audioFile); // audioFile es un File object del input
+
+fetch(url, {
+  method: 'POST',
+  body: formData
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Transcripción:', data.transcription);
+    console.log('Idioma:', data.language);
+    console.log('Duración:', data.duration, 'segundos');
   })
   .catch(error => console.error('Error:', error));
 ```
