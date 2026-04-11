@@ -6,27 +6,32 @@ import sql from '../db/client.js';
  * @returns {Promise<boolean>} - true si ya completó 2 veces hoy, false si aún puede responder
  */
 export async function yaRespondioDobleHoy(idPaciente) {
-	// Usar la hora actual del servidor y convertirla a GMT-5 Lima/Peru
+	// Obtener componentes de fecha en zona horaria Lima (GMT-5)
 	const ahora = new Date();
+	const partes = new Intl.DateTimeFormat('en-US', {
+		timeZone: 'America/Lima',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).formatToParts(ahora);
 
-	// Convertir a hora de Lima usando toLocaleString
-	const ahoraLimaStr = ahora.toLocaleString('en-US', { timeZone: 'America/Lima' });
-	const ahoraLima = new Date(ahoraLimaStr);
+	const fecha = {};
+	partes.forEach(({ type, value }) => {
+		fecha[type] = value;
+	});
 
-	// Obtener inicio del día en Lima (00:00:00)
-	const inicioDiaLima = new Date(ahoraLima);
-	inicioDiaLima.setHours(0, 0, 0, 0);
-
-	// Obtener fin del día en Lima (23:59:59)
-	const finDiaLima = new Date(ahoraLima);
-	finDiaLima.setHours(23, 59, 59, 999);
+	// Construir fecha en formato 'YYYY-MM-DD' para Lima
+	const fechaHoy = `${fecha.year}-${fecha.month}-${fecha.day}`;
 
 	const [result] = await sql`
 		SELECT COUNT(*) as count
 		FROM paciente_respuesta
 		WHERE id_paciente = ${idPaciente}
-		AND fecha_respuesta >= ${inicioDiaLima.toISOString()}
-		AND fecha_respuesta <= ${finDiaLima.toISOString()}
+		AND TO_CHAR(fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
 	`;
 
 	return parseInt(result.count) >= 2;
