@@ -8,6 +8,13 @@
 	let error = $state('');
 	let showPassword = $state(false);
 
+	// Estado del modal de recuperación de contraseña
+	let showRecuperarModal = $state(false);
+	let correoRecuperar = $state('');
+	let isLoadingRecuperar = $state(false);
+	let errorRecuperar = $state('');
+	let successRecuperar = $state('');
+
 	// Verificar mensajes de URL
 	onMount(() => {
 		const urlParams = new URLSearchParams(window.location.search);
@@ -17,6 +24,51 @@
 			error = 'Su cuenta ha sido desactivada. Contacte al administrador.';
 		}
 	});
+
+	function abrirModalRecuperar() {
+		correoRecuperar = '';
+		errorRecuperar = '';
+		successRecuperar = '';
+		showRecuperarModal = true;
+	}
+
+	function cerrarModalRecuperar() {
+		showRecuperarModal = false;
+	}
+
+	async function handleRecuperarPassword(e) {
+		e.preventDefault();
+		errorRecuperar = '';
+		successRecuperar = '';
+
+		if (!correoRecuperar.trim()) {
+			errorRecuperar = 'Por favor ingrese su correo electrónico';
+			return;
+		}
+
+		try {
+			isLoadingRecuperar = true;
+
+			const response = await fetch('/api/auth/recuperar-password-paciente', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ correo: correoRecuperar.trim() })
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				successRecuperar = result.message;
+			} else {
+				errorRecuperar = result.error || 'Error al restablecer la contraseña';
+			}
+		} catch (err) {
+			errorRecuperar = 'Error de conexión. Por favor, intente nuevamente.';
+			console.error('Error en recuperar contraseña:', err);
+		} finally {
+			isLoadingRecuperar = false;
+		}
+	}
 
 	async function handleSubmit(e) {
 		e.preventDefault();
@@ -180,7 +232,13 @@
 
 			<!-- Footer -->
 			<div class="px-8 py-4 bg-gray-50 text-center space-y-2">
-				<p class="text-sm text-gray-600">¿Olvidó su contraseña? Contacte al centro de atención</p>
+				<button
+					type="button"
+					onclick={abrirModalRecuperar}
+					class="text-sm text-purple-600 hover:text-purple-700 font-semibold transition-colors"
+				>
+					¿Olvidó su contraseña?
+				</button>
 				<div class="pt-2 border-t border-gray-200">
 					<a
 						href="/login/especialista"
@@ -202,3 +260,107 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal Recuperar Contraseña -->
+{#if showRecuperarModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+			<!-- Header modal -->
+			<div class="px-6 pt-6 pb-4 text-center" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
+				<div class="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+					<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+					</svg>
+				</div>
+				<h2 class="text-xl font-bold text-gray-800">Recuperar Contraseña</h2>
+				<p class="text-gray-500 text-sm mt-1">Ingrese su correo registrado y le restableceremos la contraseña</p>
+			</div>
+
+			<!-- Body modal -->
+			<div class="px-6 py-5">
+				{#if successRecuperar}
+					<div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm mb-4">
+						<div class="flex items-start">
+							<svg class="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+							</svg>
+							<span>{successRecuperar}</span>
+						</div>
+					</div>
+					<button
+						type="button"
+						onclick={cerrarModalRecuperar}
+						class="w-full py-3 px-4 rounded-lg font-semibold text-white shadow-lg transition-all"
+						style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+					>
+						Aceptar
+					</button>
+				{:else}
+					<form onsubmit={handleRecuperarPassword} class="space-y-4">
+						{#if errorRecuperar}
+							<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+								<div class="flex items-start">
+									<svg class="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+									</svg>
+									<span>{errorRecuperar}</span>
+								</div>
+							</div>
+						{/if}
+
+						<div>
+							<label for="correoRecuperar" class="block text-sm font-semibold text-gray-700 mb-2">
+								Correo electrónico
+							</label>
+							<div class="relative">
+								<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+									<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+									</svg>
+								</div>
+								<input
+									type="email"
+									id="correoRecuperar"
+									bind:value={correoRecuperar}
+									disabled={isLoadingRecuperar}
+									placeholder="correo@ejemplo.com"
+									class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+									required
+								/>
+							</div>
+						</div>
+
+						<div class="flex gap-3 pt-2">
+							<button
+								type="button"
+								onclick={cerrarModalRecuperar}
+								disabled={isLoadingRecuperar}
+								class="flex-1 py-3 px-4 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all disabled:opacity-50"
+							>
+								Cancelar
+							</button>
+							<button
+								type="submit"
+								disabled={isLoadingRecuperar}
+								class="flex-1 py-3 px-4 rounded-lg font-semibold text-white shadow-lg transition-all disabled:opacity-50"
+								style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+							>
+								{#if isLoadingRecuperar}
+									<span class="flex items-center justify-center">
+										<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+										</svg>
+										Procesando...
+									</span>
+								{:else}
+									Restablecer
+								{/if}
+							</button>
+						</div>
+					</form>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}

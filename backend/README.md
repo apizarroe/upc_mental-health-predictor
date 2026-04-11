@@ -1,13 +1,29 @@
 # Backend ML API - Mental Health Predictor
 
-Microservicio Python especializado en predicción de trastornos mentales usando modelos de Machine Learning y Deep Learning.
+Microservicio Python especializado en predicción de trastornos mentales (depresión y ansiedad) usando modelos de Machine Learning y Deep Learning. Implementa un modelo multi-etiqueta con BERT + XGBoost y transcripción de audio con Faster-Whisper.
+
+## Tabla de Contenidos
+
+- [Modelos Implementados](#modelos-implementados)
+- [Estructura](#estructura)
+- [Instalación](#instalación)
+- [Desarrollo](#desarrollo)
+- [Testing](#testing)
+- [Linting y Formato](#linting-y-formato)
+- [Entrenamiento de Modelos](#-entrenamiento-de-modelos)
+- [Validación de Modelos](#-validación-de-modelos)
+- [Scripts CLI Disponibles](#scripts-cli-disponibles)
+- [Endpoints Principales](#endpoints-principales)
+- [Variables de Entorno](#variables-de-entorno)
+- [Dependencias Principales](#dependencias-principales)
+- [Deployment](#deployment)
 
 ## Modelos Implementados
 
-- **BERT**: Modelo de lenguaje pre-entrenado para análisis contextual
-- **XGBoost**: Gradient boosting para clasificación
-- **Random Forest**: Ensemble de árboles de decisión
-- **Ensemble**: Combinación de modelos para mejor precisión
+- **BERT Multi-label**: `dccuchile/bert-base-spanish-wwm-cased` para embeddings contextuales en español
+- **XGBoost Multi-Output**: Clasificador multi-etiqueta para predicción simultánea de depresión y ansiedad
+- **Faster-Whisper**: Modelo `small` para transcripción de audio a texto en español
+- **PyTorch**: Framework para procesamiento con BERT
 
 ## Estructura
 
@@ -206,25 +222,46 @@ python scripts/test.py
 
 ## Endpoints Principales
 
-### Health Check
-```http
-GET /health
-```
+Para documentación detallada de cada endpoint, ver [API_README.md](API_README.md).
 
-### Predicción
+### Predicción de Salud Mental (Multi-Etiqueta)
 ```http
-POST /api/v1/predict
+POST /api/v1/predict/mental-health
 Content-Type: application/json
 
 {
-  "text": "Nota clínica del paciente...",
-  "model": "bert"  // "xgboost" | "random_forest" | "ensemble"
+  "patient_id": "PAT-001",
+  "answers": {
+    "question1": "Respuesta del paciente...",
+    "question2": "Respuesta del paciente...",
+    "question3": "Respuesta del paciente...",
+    "question4": "Respuesta del paciente..."
+  }
 }
+```
+
+**Retorna**: Predicciones para depresión y ansiedad con probabilidades, keywords detectadas y nivel de riesgo.
+
+### Transcripción de Audio
+```http
+POST /api/v1/audio/transcribe
+Content-Type: multipart/form-data
+
+{
+  "audio": archivo.wav
+}
+```
+
+**Retorna**: Texto transcrito del audio usando Faster-Whisper.
+
+### Health Check
+```http
+GET /api/v1/health
 ```
 
 ### Información del Modelo
 ```http
-GET /api/v1/models
+GET /api/v1/model/info
 ```
 
 ## Variables de Entorno
@@ -232,21 +269,43 @@ GET /api/v1/models
 Ver `.env.example` para configuración completa.
 
 Principales variables:
-- `PORT`: Puerto del servidor (default: 8000)
-- `BERT_MODEL_PATH`: Ruta al modelo BERT
-- `XGBOOST_MODEL_PATH`: Ruta al modelo XGBoost
-- `RF_MODEL_PATH`: Ruta al modelo Random Forest
-- `MAX_LENGTH`: Longitud máxima de tokens
-- `DEVICE`: cpu, cuda o mps
+- `API_PORT`: Puerto del servidor (default: 8000)
+- `API_HOST`: Host del servidor (default: 0.0.0.0)
+- `MODEL_PATH`: Ruta al modelo entrenado (default: `data/trained_models/`)
+- `WHISPER_MODEL`: Modelo de Whisper (default: `small`)
+- `MAX_LENGTH`: Longitud máxima de tokens BERT (default: 512)
+- `DEVICE`: Dispositivo de cómputo (cpu, cuda o mps)
+- `CORS_ORIGINS`: Orígenes CORS permitidos
+- `OMP_NUM_THREADS`: Threading para OpenMP (1 en macOS para evitar crashes)
 
 ## Dependencias Principales
 
-- FastAPI: Framework web
-- Transformers: Modelos BERT
-- XGBoost: Gradient boosting
-- scikit-learn: ML tradicional
-- PyTorch: Deep learning
-- Uvicorn: Servidor ASGI
+- **FastAPI**: Framework web asíncrono (v0.104.1)
+- **Transformers**: Modelos BERT de Hugging Face (v4.35.2)
+- **XGBoost**: Gradient boosting para clasificación multi-label (v2.0.3)
+- **PyTorch**: Deep learning framework (v2.1.1)
+- **Faster-Whisper**: Transcripción de audio optimizada (v0.10.0)
+- **scikit-learn**: Herramientas ML (v1.3.2)
+- **Uvicorn**: Servidor ASGI de alto rendimiento (v0.24.0)
+- **Pydantic**: Validación de datos (v2.5.0)
+
+## Notas Importantes
+
+### macOS - Fix OpenMP Crash
+Si experimentas segmentation faults en macOS, el proyecto ya incluye la configuración necesaria en `app/main.py`:
+
+```python
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+```
+
+Esto previene conflictos entre `libomp.dylib` (Faster-Whisper) y `libiomp5.dylib` (PyTorch).
+
+### Métricas del Modelo
+El modelo multi-etiqueta actual tiene las siguientes métricas en el test set:
+- **Depresión**: Accuracy 72.5%, F1-Score 76.0%
+- **Ansiedad**: Accuracy 68.0%, F1-Score 61.9%
+- **Overall**: Avg Accuracy 70.25%, Avg F1-Score 68.9%
 
 ## Deployment
 
