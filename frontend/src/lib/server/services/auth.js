@@ -204,6 +204,50 @@ export async function cambiarPassword(id_especialista, passwordActual, passwordN
 }
 
 /**
+ * Recuperar contraseña: resetear al DNI del especialista si el correo coincide
+ */
+export async function recuperarPasswordEspecialista(correo) {
+	// Buscar especialista por correo
+	const [especialista] = await sql`
+		SELECT id_especialista, correo, dni, flg_activo FROM especialista
+		WHERE correo = ${correo}
+	`;
+
+	if (!especialista) {
+		return {
+			success: false,
+			error: 'No existe una cuenta registrada con ese correo electrónico'
+		};
+	}
+
+	if (!especialista.flg_activo) {
+		return {
+			success: false,
+			error: 'Cuenta desactivada. Contacte al administrador'
+		};
+	}
+
+	// Hashear el DNI como nueva contraseña por defecto
+	const saltRounds = 10;
+	const nuevoHash = await bcrypt.hash(especialista.dni, saltRounds);
+
+	// Actualizar contraseña y marcar como no cambiada (forzar cambio en siguiente login)
+	await sql`
+		UPDATE especialista
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NULL,
+		    intentos_fallidos = 0,
+		    bloqueado_hasta = NULL
+		WHERE id_especialista = ${especialista.id_especialista}
+	`;
+
+	return {
+		success: true,
+		message: 'Contraseña restablecida correctamente. Su nueva contraseña es su número de DNI.'
+	};
+}
+
+/**
  * Cambiar contraseña en primer login (sin validar contraseña actual)
  */
 export async function cambiarPasswordPrimerLogin(id_especialista, passwordNueva) {

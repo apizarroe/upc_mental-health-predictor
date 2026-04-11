@@ -211,6 +211,50 @@ export async function cambiarPasswordPaciente(id_paciente, passwordActual, passw
 }
 
 /**
+ * Recuperar contraseña: resetear al DNI del paciente si el correo coincide
+ */
+export async function recuperarPasswordPaciente(correo) {
+	// Buscar paciente por correo
+	const [paciente] = await sql`
+		SELECT id_paciente, correo, dni, flg_activo FROM paciente
+		WHERE correo = ${correo}
+	`;
+
+	if (!paciente) {
+		return {
+			success: false,
+			error: 'No existe una cuenta registrada con ese correo electrónico'
+		};
+	}
+
+	if (!paciente.flg_activo) {
+		return {
+			success: false,
+			error: 'Cuenta desactivada. Contacte al administrador'
+		};
+	}
+
+	// Hashear el DNI como nueva contraseña por defecto
+	const saltRounds = 10;
+	const nuevoHash = await bcrypt.hash(paciente.dni, saltRounds);
+
+	// Actualizar contraseña y marcar como no cambiada (forzar cambio en siguiente login)
+	await sql`
+		UPDATE paciente
+		SET password_hash = ${nuevoHash},
+		    password_cambiado_en = NULL,
+		    intentos_fallidos = 0,
+		    bloqueado_hasta = NULL
+		WHERE id_paciente = ${paciente.id_paciente}
+	`;
+
+	return {
+		success: true,
+		message: 'Contraseña restablecida correctamente. Su nueva contraseña es su número de DNI.'
+	};
+}
+
+/**
  * Cambiar contraseña de paciente en primer login (sin validar contraseña actual)
  */
 export async function cambiarPasswordPacientePrimerLogin(id_paciente, passwordNueva) {
