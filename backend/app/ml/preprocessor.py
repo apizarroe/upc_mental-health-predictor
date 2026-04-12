@@ -21,11 +21,12 @@ class TextPreprocessor:
             'triste', 'deprimido', 'depresión', 'desesperanza', 'desesperado',
             'vacío', 'soledad', 'solo', 'aislado', 'llorar', 'lloro',
             'culpa', 'inútil', 'fracaso', 'muerte', 'morir', 'suicidio',
-            'cansado', 'agotado', 'fatiga', 'energía', 'motivación',
-            'sad', 'depressed', 'depression', 'hopeless', 'desperate',
-            'empty', 'lonely', 'alone', 'isolated', 'cry', 'crying',
-            'guilt', 'worthless', 'failure', 'death', 'die',
-            'tired', 'exhausted', 'fatigue', 'energy', 'motivation'
+            'cansado', 'agotado', 'fatiga', 'poca energía', 'falta energía',
+            'motivación'
+            # 'sad', 'depressed', 'depression', 'hopeless', 'desperate',
+            # 'empty', 'lonely', 'alone', 'isolated', 'cry', 'crying',
+            # 'guilt', 'worthless', 'failure', 'death', 'die',
+            # 'tired', 'exhausted', 'fatigue', 'energy', 'motivation'
         ]
 
         # Keywords específicas para ansiedad
@@ -34,12 +35,12 @@ class TextPreprocessor:
             'preocupado', 'preocupación', 'miedo', 'temor', 'fobia',
             'tensión', 'tenso', 'inquieto', 'agitado', 'estrés', 'estresado',
             'palpitaciones', 'sudor', 'temblor', 'respiración', 'abrumado',
-            'insomnio', 'dormir',
-            'anxiety', 'anxious', 'nervous', 'nervousness', 'panic',
-            'worried', 'worry', 'fear', 'phobia',
-            'tension', 'tense', 'restless', 'agitated', 'stress', 'stressed',
-            'palpitations', 'sweat', 'trembling', 'breathing', 'overwhelmed',
-            'insomnia', 'sleep'
+            'insomnio', 'lograr dormir'
+            # 'anxiety', 'anxious', 'nervous', 'nervousness', 'panic',
+            # 'worried', 'worry', 'fear', 'phobia',
+            # 'tension', 'tense', 'restless', 'agitated', 'stress', 'stressed',
+            # 'palpitations', 'sweat', 'trembling', 'breathing', 'overwhelmed',
+            # 'insomnia', 'sleep'
         ]
 
     def load_parquet(self, file_path: str) -> pd.DataFrame:

@@ -245,6 +245,12 @@ class TrainingPipeline:
             'model_name': model_name,
             'model_type': 'multi_label' if self.multi_label else 'binary',
             'labels': ['depression', 'anxiety'] if self.multi_label else ['depression'],
+            'decision_thresholds': {
+                'depression': 0.80,
+                'anxiety': 0.75
+            } if self.multi_label else {
+                'depression': 0.80
+            },
             'created_at': datetime.now().isoformat(),
             'bert_model': self.encoder.model_name,
             'embedding_dim': self.encoder.get_embedding_dim(),

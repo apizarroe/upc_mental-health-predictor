@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 import json
 import sys
+import os
 
 from .transformer_encoder import TransformerEncoder
 from .classifier import DepressionClassifier
@@ -30,6 +31,11 @@ class PredictionPipeline:
 
         # El resultado incluirá depresión y ansiedad si el modelo es multi-etiqueta
     """
+
+    DEFAULT_THRESHOLDS = {
+        'depression': 0.80,
+        'anxiety': 0.75
+    }
 
     def __init__(
         self,
@@ -57,6 +63,7 @@ class PredictionPipeline:
         self.model_name: Optional[str] = None
         self.is_multi_label: bool = False
         self.labels: List[str] = ['depression']
+        self.thresholds: Dict[str, float] = dict(self.DEFAULT_THRESHOLDS)
 
         # Cargar modelo
         if model_path:
@@ -114,6 +121,7 @@ class PredictionPipeline:
             # Detectar tipo de modelo
             self.is_multi_label = self.metadata.get('model_type') == 'multi_label'
             self.labels = self.metadata.get('labels', ['depression'])
+            self.thresholds = self._resolve_thresholds(self.metadata)
 
             bert_model = self.metadata.get('bert_model', 'dccuchile/bert-base-spanish-wwm-cased')
             max_length = self.metadata.get('max_length', 512)
@@ -125,6 +133,7 @@ class PredictionPipeline:
                 print(f"   • Etiquetas: {self.labels}")
                 print(f"   • BERT model: {bert_model}")
                 print(f"   • Max length: {max_length}")
+                print(f"   • Thresholds: {self.thresholds}")
                 print(f"   • Entrenado: {self.metadata.get('created_at', 'N/A')}")
 
                 # Mostrar métricas si existen
@@ -155,6 +164,7 @@ class PredictionPipeline:
         else:
             if self.verbose:
                 print("⚠️  No se encontró archivo de metadata, usando configuración default")
+            self.thresholds = self._resolve_thresholds()
             self.encoder = TransformerEncoder()
 
         # Cargar clasificador según tipo
@@ -167,6 +177,26 @@ class PredictionPipeline:
 
         if self.verbose:
             print("\n✅ Pipeline de predicción listo!")
+
+    def _resolve_thresholds(self, metadata: Optional[Dict] = None) -> Dict[str, float]:
+        """Resuelve umbrales de decisión desde metadata/env o usa defaults conservadores."""
+        thresholds = dict(self.DEFAULT_THRESHOLDS)
+
+        if metadata:
+            thresholds.update(metadata.get('decision_thresholds', {}))
+
+        env_depression = os.getenv('ML_DEPRESSION_THRESHOLD')
+        env_anxiety = os.getenv('ML_ANXIETY_THRESHOLD')
+
+        if env_depression is not None:
+            thresholds['depression'] = float(env_depression)
+        if env_anxiety is not None:
+            thresholds['anxiety'] = float(env_anxiety)
+
+        return {
+            label: min(max(float(value), 0.0), 1.0)
+            for label, value in thresholds.items()
+        }
 
     def predict_text(
         self,
@@ -235,11 +265,15 @@ class PredictionPipeline:
         probabilities = self.classifier.predict_proba(embedding)[0]
         prob_depression = probabilities[1]
         confidence = max(probabilities)
+        threshold = self.thresholds['depression']
+        has_depression = prob_depression >= threshold
 
         result = {
             'text': text,
-            'prediction': int(prediction),
-            'label': 'Depresión' if prediction == 1 else 'Sin depresión'
+            'prediction': int(has_depression),
+            'label': 'Depresión' if has_depression else 'Sin depresión',
+            'raw_prediction': int(prediction),
+            'threshold': float(threshold)
         }
 
         if return_probabilities:
@@ -256,37 +290,45 @@ class PredictionPipeline:
     ) -> Dict:
         """Predicción para modelo multi-etiqueta (depresión + ansiedad)."""
         # Obtener predicciones y probabilidades
-        predictions = self.classifier.predict(embedding)[0]  # [dep, anx]
+        raw_predictions = self.classifier.predict(embedding)[0]  # [dep, anx]
         probas = self.classifier.predict_proba(embedding)
 
         # Extraer probabilidades para cada etiqueta
         prob_depression = probas[0][0, 1]  # P(depression=1)
         prob_anxiety = probas[1][0, 1]      # P(anxiety=1)
+        depression_threshold = self.thresholds['depression']
+        anxiety_threshold = self.thresholds['anxiety']
+        has_depression = prob_depression >= depression_threshold
+        has_anxiety = prob_anxiety >= anxiety_threshold
 
         # Construir resultado estructurado
         result = {
             'text': text,
             'predictions': {
                 'depression': {
-                    'prediction': int(predictions[0]),
-                    'label': 'Depresión' if predictions[0] == 1 else 'Sin depresión',
+                    'prediction': int(has_depression),
+                    'label': 'Depresión' if has_depression else 'Sin depresión',
+                    'raw_prediction': int(raw_predictions[0]),
+                    'threshold': float(depression_threshold)
                 },
                 'anxiety': {
-                    'prediction': int(predictions[1]),
-                    'label': 'Ansiedad' if predictions[1] == 1 else 'Sin ansiedad',
+                    'prediction': int(has_anxiety),
+                    'label': 'Ansiedad' if has_anxiety else 'Sin ansiedad',
+                    'raw_prediction': int(raw_predictions[1]),
+                    'threshold': float(anxiety_threshold)
                 }
             },
             'summary': {
-                'has_depression': bool(predictions[0] == 1),
-                'has_anxiety': bool(predictions[1] == 1),
+                'has_depression': bool(has_depression),
+                'has_anxiety': bool(has_anxiety),
                 'conditions_detected': []
             }
         }
 
         # Agregar condiciones detectadas
-        if predictions[0] == 1:
+        if has_depression:
             result['summary']['conditions_detected'].append('depression')
-        if predictions[1] == 1:
+        if has_anxiety:
             result['summary']['conditions_detected'].append('anxiety')
 
         # Agregar probabilidades si se solicitan
@@ -351,11 +393,15 @@ class PredictionPipeline:
             probs = probabilities[i]
             prob_depression = probs[1]
             confidence = max(probs)
+            threshold = self.thresholds['depression']
+            has_depression = prob_depression >= threshold
 
             result = {
                 'text': text,
-                'prediction': int(prediction),
-                'label': 'Depresión' if prediction == 1 else 'Sin depresión'
+                'prediction': int(has_depression),
+                'label': 'Depresión' if has_depression else 'Sin depresión',
+                'raw_prediction': int(prediction),
+                'threshold': float(threshold)
             }
 
             if return_probabilities:
@@ -381,29 +427,37 @@ class PredictionPipeline:
             pred = predictions[i]  # [dep, anx]
             prob_depression = probas[0][i, 1]
             prob_anxiety = probas[1][i, 1]
+            depression_threshold = self.thresholds['depression']
+            anxiety_threshold = self.thresholds['anxiety']
+            has_depression = prob_depression >= depression_threshold
+            has_anxiety = prob_anxiety >= anxiety_threshold
 
             result = {
                 'text': text,
                 'predictions': {
                     'depression': {
-                        'prediction': int(pred[0]),
-                        'label': 'Depresión' if pred[0] == 1 else 'Sin depresión',
+                        'prediction': int(has_depression),
+                        'label': 'Depresión' if has_depression else 'Sin depresión',
+                        'raw_prediction': int(pred[0]),
+                        'threshold': float(depression_threshold)
                     },
                     'anxiety': {
-                        'prediction': int(pred[1]),
-                        'label': 'Ansiedad' if pred[1] == 1 else 'Sin ansiedad',
+                        'prediction': int(has_anxiety),
+                        'label': 'Ansiedad' if has_anxiety else 'Sin ansiedad',
+                        'raw_prediction': int(pred[1]),
+                        'threshold': float(anxiety_threshold)
                     }
                 },
                 'summary': {
-                    'has_depression': bool(pred[0] == 1),
-                    'has_anxiety': bool(pred[1] == 1),
+                    'has_depression': bool(has_depression),
+                    'has_anxiety': bool(has_anxiety),
                     'conditions_detected': []
                 }
             }
 
-            if pred[0] == 1:
+            if has_depression:
                 result['summary']['conditions_detected'].append('depression')
-            if pred[1] == 1:
+            if has_anxiety:
                 result['summary']['conditions_detected'].append('anxiety')
 
             if return_probabilities:
@@ -435,6 +489,8 @@ class PredictionPipeline:
             info['created_at'] = self.metadata.get('created_at')
             info['metrics'] = self.metadata.get('metrics')
             info['xgboost_params'] = self.metadata.get('xgboost_params')
+
+        info['decision_thresholds'] = self.thresholds
 
         return info
 
