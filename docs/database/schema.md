@@ -5,57 +5,61 @@ Este documento describe el esquema de la base de datos para el sistema de predic
 ## Tablas
 
 ### paciente
+
 Información de los pacientes del centro de atención psicológica.
 
-| Campo                | Tipo         | Restricciones | Descripción                               |
-|---------------------|--------------|---------------|-------------------------------------------|
-| id_paciente         | BIGSERIAL    | PRIMARY KEY   | Identificador único del paciente          |
-| dni                 | VARCHAR(12)  |               | DNI o documento de identidad              |
-| nombres             | VARCHAR(80)  |               | Nombres del paciente                      |
-| apellidos           | VARCHAR(80)  |               | Apellidos del paciente                    |
-| fecha_nacimiento    | DATE         |               | Fecha de nacimiento                       |
-| sexo                | CHAR(1)      |               | Sexo: 'M' o 'F'                          |
-| direccion           | VARCHAR(255) |               | Dirección de residencia                   |
-| telefono            | VARCHAR(20)  |               | Teléfono de contacto                      |
-| correo              | VARCHAR(50)  |               | Email del paciente                        |
-| contacto_emergencia | VARCHAR(150) |               | Nombre de contacto de emergencia          |
-| telefono_emergencia | VARCHAR(20)  |               | Teléfono de emergencia                    |
+| Campo               | Tipo         | Restricciones | Descripción                                  |
+| ------------------- | ------------ | ------------- | -------------------------------------------- |
+| id_paciente         | BIGSERIAL    | PRIMARY KEY   | Identificador único del paciente             |
+| dni                 | VARCHAR(12)  |               | DNI o documento de identidad                 |
+| nombres             | VARCHAR(80)  |               | Nombres del paciente                         |
+| apellidos           | VARCHAR(80)  |               | Apellidos del paciente                       |
+| fecha_nacimiento    | DATE         |               | Fecha de nacimiento                          |
+| sexo                | CHAR(1)      |               | Sexo: 'M' o 'F'                              |
+| direccion           | VARCHAR(255) |               | Dirección de residencia                      |
+| telefono            | VARCHAR(20)  |               | Teléfono de contacto                         |
+| correo              | VARCHAR(50)  |               | Email del paciente                           |
+| contacto_emergencia | VARCHAR(150) |               | Nombre de contacto de emergencia             |
+| telefono_emergencia | VARCHAR(20)  |               | Teléfono de emergencia                       |
 | password_hash       | VARCHAR(255) |               | Contraseña hasheada para acceso del paciente |
 | ultimo_acceso       | TIMESTAMP    |               | Fecha y hora del último inicio de sesión     |
 | intentos_fallidos   | INT          | DEFAULT 0     | Contador de intentos fallidos de login       |
 | bloqueado_hasta     | TIMESTAMP    |               | Fecha hasta la cual está bloqueada la cuenta |
-| fecha_registro      | TIMESTAMP    | DEFAULT NOW   | Fecha de registro en el sistema           |
-| flg_activo          | BOOLEAN      | DEFAULT true  | Estado activo/inactivo del paciente       |
+| fecha_registro      | TIMESTAMP    | DEFAULT NOW   | Fecha de registro en el sistema              |
+| flg_activo          | BOOLEAN      | DEFAULT true  | Estado activo/inactivo del paciente          |
 
 **Índices:**
+
 ```sql
 CREATE INDEX idx_paciente_dni ON paciente(dni); -- Crítico: usado en login (WHERE dni = ?)
 CREATE INDEX idx_paciente_activo ON paciente(flg_activo); -- Usado en filtros
 ```
 
 ### especialista
+
 Profesionales de salud mental del centro con credenciales de acceso al sistema.
 
-| Campo              | Tipo         | Restricciones | Descripción                                  |
-|--------------------|--------------|---------------|----------------------------------------------|
-| id_especialista    | BIGSERIAL    | PRIMARY KEY   | Identificador único del especialista         |
-| dni                | VARCHAR(12)  |               | DNI del especialista                         |
-| nombres            | VARCHAR(80)  |               | Nombres del especialista                     |
-| apellidos          | VARCHAR(80)  |               | Apellidos del especialista                   |
-| especialidad       | VARCHAR(50)  |               | Especialidad: 'Psicólogo', 'Psiquiatra', etc|
-| colegiatura        | VARCHAR(20)  |               | Número de colegiatura (CMP, CPsP)           |
-| correo             | VARCHAR(50)  |               | Email profesional                            |
-| telefono           | VARCHAR(20)  |               | Teléfono de contacto                         |
-| cargo              | VARCHAR(50)  |               | Cargo en el centro                           |
-| usuario            | VARCHAR(50)  | UNIQUE        | Nombre de usuario para login (único)         |
-| password_hash      | VARCHAR(255) |               | Contraseña hasheada (bcrypt)                 |
-| rol                | VARCHAR(20)  | DEFAULT 'especialista' | Rol: 'admin', 'especialista', 'coordinador' |
-| ultimo_acceso      | TIMESTAMP    |               | Fecha y hora del último inicio de sesión     |
-| intentos_fallidos  | INT          | DEFAULT 0     | Contador de intentos fallidos de login       |
-| bloqueado_hasta    | TIMESTAMP    |               | Fecha hasta la cual está bloqueada la cuenta |
-| flg_activo         | BOOLEAN      | DEFAULT true  | Estado activo/inactivo del especialista      |
+| Campo             | Tipo         | Restricciones          | Descripción                                  |
+| ----------------- | ------------ | ---------------------- | -------------------------------------------- |
+| id_especialista   | BIGSERIAL    | PRIMARY KEY            | Identificador único del especialista         |
+| dni               | VARCHAR(12)  |                        | DNI del especialista                         |
+| nombres           | VARCHAR(80)  |                        | Nombres del especialista                     |
+| apellidos         | VARCHAR(80)  |                        | Apellidos del especialista                   |
+| especialidad      | VARCHAR(50)  |                        | Especialidad: 'Psicólogo', 'Psiquiatra', etc |
+| colegiatura       | VARCHAR(20)  |                        | Número de colegiatura (CMP, CPsP)            |
+| correo            | VARCHAR(50)  |                        | Email profesional                            |
+| telefono          | VARCHAR(20)  |                        | Teléfono de contacto                         |
+| cargo             | VARCHAR(50)  |                        | Cargo en el centro                           |
+| usuario           | VARCHAR(50)  | UNIQUE                 | Nombre de usuario para login (único)         |
+| password_hash     | VARCHAR(255) |                        | Contraseña hasheada (bcrypt)                 |
+| rol               | VARCHAR(20)  | DEFAULT 'especialista' | Rol: 'admin', 'especialista', 'coordinador'  |
+| ultimo_acceso     | TIMESTAMP    |                        | Fecha y hora del último inicio de sesión     |
+| intentos_fallidos | INT          | DEFAULT 0              | Contador de intentos fallidos de login       |
+| bloqueado_hasta   | TIMESTAMP    |                        | Fecha hasta la cual está bloqueada la cuenta |
+| flg_activo        | BOOLEAN      | DEFAULT true           | Estado activo/inactivo del especialista      |
 
 **Índices:**
+
 ```sql
 CREATE UNIQUE INDEX idx_especialista_usuario ON especialista(usuario); -- Crítico: login (WHERE usuario = ?)
 CREATE INDEX idx_especialista_activo ON especialista(flg_activo); -- Usado en filtros
@@ -63,36 +67,39 @@ CREATE INDEX idx_especialista_rol ON especialista(rol); -- Control de acceso por
 ```
 
 ### historia_clinica
+
 Historia clínica de cada paciente con información detallada de antecedentes médicos, psicológicos, familiares y situación actual del paciente al momento de apertura de la historia.
 
-| Campo                       | Tipo        | Restricciones | Descripción                                          |
-|-----------------------------|-------------|---------------|------------------------------------------------------|
-| id_historia                 | BIGSERIAL   | PRIMARY KEY   | Identificador único de la historia clínica           |
-| id_paciente                 | BIGINT      | FOREIGN KEY   | Referencia a paciente(id_paciente)                   |
-| fecha_apertura              | TIMESTAMP   | DEFAULT NOW   | Fecha y hora de apertura de la historia             |
-| especialista_apertura       | BIGINT      | FOREIGN KEY   | ID del especialista que abrió la historia            |
-| servicio_origen             | VARCHAR(100)|               | Servicio o área de origen del paciente               |
-| antecedentes_personales     | TEXT        |               | Antecedentes médicos y psicológicos personales       |
-| antecedentes_familiares     | JSONB       |               | Antecedentes familiares en formato JSON: depresion, ansiedad, bipolaridad, esquizofrenia, tdah, toc, adicciones, suicidio, otros (booleanos) |
-| antecedentes_psicosociales  | TEXT        |               | Contexto psicosocial del paciente                    |
-| habitos_personales          | JSONB       |               | Hábitos en formato JSON: alcohol, alcohol_frecuencia, tabaco, tabaco_frecuencia, drogas, drogas_frecuencia, sueño_horas, sueño_calidad, alimentacion, ejercicio, otros |
-| situacion_familiar          | TEXT        |               | Descripción de la dinámica familiar actual           |
-| situacion_laboral           | TEXT        |               | Situación laboral y ocupacional actual               |
-| evaluacion_inicial          | TEXT        |               | Evaluación psicológica inicial                       |
-| diagnostico_inicial         | TEXT        |               | Diagnóstico o impresión diagnóstica inicial          |
-| tratamientos_previos        | TEXT        |               | Tratamientos psicológicos previos recibidos          |
-| situacion_historia          | VARCHAR(30) | DEFAULT 'Abierta' | Estado: 'Abierta', 'Cerrada', 'En revisión'      |
-| fecha_actualizacion         | TIMESTAMP   |               | Última fecha de actualización de la historia         |
-| especialista_actualizacion  | BIGINT      | FOREIGN KEY   | ID del último especialista que actualizó             |
-| fecha_cierre                | TIMESTAMP   |               | Fecha de cierre de la historia                       |
-| motivo_cierre               | TEXT        |               | Motivo o razón del cierre de la historia             |
+| Campo                      | Tipo         | Restricciones     | Descripción                                                                                                                                                            |
+| -------------------------- | ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id_historia                | BIGSERIAL    | PRIMARY KEY       | Identificador único de la historia clínica                                                                                                                             |
+| id_paciente                | BIGINT       | FOREIGN KEY       | Referencia a paciente(id_paciente)                                                                                                                                     |
+| fecha_apertura             | TIMESTAMP    | DEFAULT NOW       | Fecha y hora de apertura de la historia                                                                                                                                |
+| especialista_apertura      | BIGINT       | FOREIGN KEY       | ID del especialista que abrió la historia                                                                                                                              |
+| servicio_origen            | VARCHAR(100) |                   | Servicio o área de origen del paciente                                                                                                                                 |
+| antecedentes_personales    | TEXT         |                   | Antecedentes médicos y psicológicos personales                                                                                                                         |
+| antecedentes_familiares    | JSONB        |                   | Antecedentes familiares en formato JSON: depresion, ansiedad, bipolaridad, esquizofrenia, tdah, toc, adicciones, suicidio, otros (booleanos)                           |
+| antecedentes_psicosociales | TEXT         |                   | Contexto psicosocial del paciente                                                                                                                                      |
+| habitos_personales         | JSONB        |                   | Hábitos en formato JSON: alcohol, alcohol_frecuencia, tabaco, tabaco_frecuencia, drogas, drogas_frecuencia, sueño_horas, sueño_calidad, alimentacion, ejercicio, otros |
+| situacion_familiar         | TEXT         |                   | Descripción de la dinámica familiar actual                                                                                                                             |
+| situacion_laboral          | TEXT         |                   | Situación laboral y ocupacional actual                                                                                                                                 |
+| evaluacion_inicial         | TEXT         |                   | Evaluación psicológica inicial                                                                                                                                         |
+| diagnostico_inicial        | TEXT         |                   | Diagnóstico o impresión diagnóstica inicial                                                                                                                            |
+| tratamientos_previos       | TEXT         |                   | Tratamientos psicológicos previos recibidos                                                                                                                            |
+| situacion_historia         | VARCHAR(30)  | DEFAULT 'Abierta' | Estado: 'Abierta', 'Cerrada', 'En revisión'                                                                                                                            |
+| fecha_actualizacion        | TIMESTAMP    |                   | Última fecha de actualización de la historia                                                                                                                           |
+| especialista_actualizacion | BIGINT       | FOREIGN KEY       | ID del último especialista que actualizó                                                                                                                               |
+| fecha_cierre               | TIMESTAMP    |                   | Fecha de cierre de la historia                                                                                                                                         |
+| motivo_cierre              | TEXT         |                   | Motivo o razón del cierre de la historia                                                                                                                               |
 
 **Relaciones:**
+
 - **FK**: `id_paciente` → `paciente(id_paciente)` (usado en LEFT JOIN y WHERE)
 - **FK**: `especialista_apertura` → `especialista(id_especialista)` (usado en LEFT JOIN)
 - **FK**: `especialista_actualizacion` → `especialista(id_especialista)` (referencia opcional)
 
 **Índices:**
+
 ```sql
 CREATE INDEX idx_historia_id_paciente ON historia_clinica(id_paciente); -- Crítico: FK usado en WHERE y JOIN
 CREATE INDEX idx_historia_especialista_apertura ON historia_clinica(especialista_apertura); -- FK usado en JOIN
@@ -101,50 +108,56 @@ CREATE INDEX idx_historia_situacion ON historia_clinica(situacion_historia); -- 
 ```
 
 ### paciente_medicacion
+
 Registro de medicaciones que el paciente ya tomaba al momento de la apertura de la historia clínica (medicamentos por preexistencias o condiciones previas).
 
-| Campo                    | Tipo         | Restricciones | Descripción                                          |
-|--------------------------|--------------|---------------|------------------------------------------------------|
-| id_medicacion_paciente   | SERIAL       | PRIMARY KEY   | Identificador único del registro de medicación       |
-| id_historia              | INT          | FOREIGN KEY, NOT NULL | Referencia a historia_clinica(id_historia)   |
-| medicacion               | VARCHAR(150) | NOT NULL      | Nombre del medicamento                               |
-| concentracion            | VARCHAR(50)  |               | Concentración (ej: "50 mg", "10 mg/ml")              |
-| forma_farmaceutica       | VARCHAR(50)  |               | Forma farmacéutica (Tableta, Cápsula, Jarabe, etc.)  |
-| dosis                    | VARCHAR(50)  |               | Dosis administrada (ej: "1 tableta", "5 ml")         |
-| frecuencia               | VARCHAR(50)  |               | Frecuencia de administración (ej: "Cada 8 horas")    |
-| anio_inicio              | INT          |               | Año de inicio del tratamiento                        |
-| tipo_medicacion          | VARCHAR(50)  |               | Tipo (ej: "Crónica", "Psicotrópico", "Antidepresivo")|
-| prescrito_por            | VARCHAR(100) |               | Nombre del médico o centro que prescribió            |
-| observaciones            | TEXT         |               | Comentarios o detalles adicionales sobre el medicamento |
-| fecha_registro           | TIMESTAMP    | DEFAULT NOW   | Fecha de registro en el sistema                      |
+| Campo                  | Tipo         | Restricciones         | Descripción                                             |
+| ---------------------- | ------------ | --------------------- | ------------------------------------------------------- |
+| id_medicacion_paciente | SERIAL       | PRIMARY KEY           | Identificador único del registro de medicación          |
+| id_historia            | INT          | FOREIGN KEY, NOT NULL | Referencia a historia_clinica(id_historia)              |
+| medicacion             | VARCHAR(150) | NOT NULL              | Nombre del medicamento                                  |
+| concentracion          | VARCHAR(50)  |                       | Concentración (ej: "50 mg", "10 mg/ml")                 |
+| forma_farmaceutica     | VARCHAR(50)  |                       | Forma farmacéutica (Tableta, Cápsula, Jarabe, etc.)     |
+| dosis                  | VARCHAR(50)  |                       | Dosis administrada (ej: "1 tableta", "5 ml")            |
+| frecuencia             | VARCHAR(50)  |                       | Frecuencia de administración (ej: "Cada 8 horas")       |
+| anio_inicio            | INT          |                       | Año de inicio del tratamiento                           |
+| tipo_medicacion        | VARCHAR(50)  |                       | Tipo (ej: "Crónica", "Psicotrópico", "Antidepresivo")   |
+| prescrito_por          | VARCHAR(100) |                       | Nombre del médico o centro que prescribió               |
+| observaciones          | TEXT         |                       | Comentarios o detalles adicionales sobre el medicamento |
+| fecha_registro         | TIMESTAMP    | DEFAULT NOW           | Fecha de registro en el sistema                         |
 
 **Relaciones:**
+
 - **FK**: `id_historia` → `historia_clinica(id_historia)` (usado en WHERE)
 
 **Índices:**
+
 ```sql
 CREATE INDEX idx_medicacion_historia ON paciente_medicacion(id_historia); -- FK usado en WHERE
 CREATE INDEX idx_medicacion_fecha ON paciente_medicacion(fecha_registro DESC); -- ORDER BY DESC
 ```
 
 ### paciente_respuesta
+
 Registro de respuestas diarias del paciente al cuestionario de seguimiento. Cada registro representa una sesión de respuesta que será procesada por el modelo de ML.
 
-| Campo                    | Tipo         | Restricciones | Descripción                                          |
-|--------------------------|--------------|---------------|------------------------------------------------------|
-| id_respuesta             | BIGSERIAL    | PRIMARY KEY   | Identificador único de la respuesta                  |
-| id_paciente              | BIGINT       | FOREIGN KEY, NOT NULL | Referencia a paciente(id_paciente)          |
-| fecha_respuesta          | TIMESTAMP    | DEFAULT NOW, NOT NULL | Fecha y hora de la respuesta                |
-| respuestas               | JSONB        | NOT NULL      | Respuestas del cuestionario en formato JSON          |
-| estado_procesamiento     | VARCHAR(20)  | DEFAULT 'pendiente', NOT NULL | Estado: 'pendiente', 'procesado', 'error' |
-| id_evaluacion            | BIGINT       | FOREIGN KEY   | Referencia a evaluacion_ml(id_evaluacion)            |
-| error_mensaje            | TEXT         |               | Mensaje de error si el procesamiento falló           |
+| Campo                | Tipo        | Restricciones                 | Descripción                                 |
+| -------------------- | ----------- | ----------------------------- | ------------------------------------------- |
+| id_respuesta         | BIGSERIAL   | PRIMARY KEY                   | Identificador único de la respuesta         |
+| id_paciente          | BIGINT      | FOREIGN KEY, NOT NULL         | Referencia a paciente(id_paciente)          |
+| fecha_respuesta      | TIMESTAMP   | DEFAULT NOW, NOT NULL         | Fecha y hora de la respuesta                |
+| respuestas           | JSONB       | NOT NULL                      | Respuestas del cuestionario en formato JSON |
+| estado_procesamiento | VARCHAR(20) | DEFAULT 'pendiente', NOT NULL | Estado: 'pendiente', 'procesado', 'error'   |
+| id_evaluacion        | BIGINT      | FOREIGN KEY                   | Referencia a evaluacion_ml(id_evaluacion)   |
+| error_mensaje        | TEXT        |                               | Mensaje de error si el procesamiento falló  |
 
 **Relaciones:**
+
 - **FK**: `id_paciente` → `paciente(id_paciente)` (usado en WHERE, COUNT y LEFT JOIN)
 - **FK**: `id_evaluacion` → `evaluacion_ml(id_evaluacion)` (usado en LEFT JOIN)
 
 **Índices:**
+
 ```sql
 -- Índice compuesto crítico para búsquedas por paciente con ordenamiento por fecha
 CREATE INDEX idx_respuesta_paciente_fecha ON paciente_respuesta(id_paciente, fecha_respuesta DESC);
@@ -156,56 +169,81 @@ CREATE INDEX idx_respuesta_evaluacion ON paciente_respuesta(id_evaluacion);
 CREATE INDEX idx_respuesta_estado ON paciente_respuesta(estado_procesamiento);
 ```
 
-### evaluacion_ml
-Almacena los resultados de la evaluación de Machine Learning sobre las respuestas del paciente. Contiene las predicciones del modelo sobre trastornos mentales detectados.
+### observacion
 
-| Campo                    | Tipo         | Restricciones | Descripción                                          |
-|--------------------------|--------------|---------------|------------------------------------------------------|
-| id_evaluacion            | BIGSERIAL    | PRIMARY KEY   | Identificador único de la evaluación                 |
-| id_respuesta             | BIGINT       | FOREIGN KEY, NOT NULL | Referencia a paciente_respuesta(id_respuesta) |
-| fecha_evaluacion         | TIMESTAMP    | DEFAULT NOW, NOT NULL | Fecha y hora de la evaluación                |
-| modelo_nombre            | VARCHAR(100) | NOT NULL      | Nombre del modelo utilizado                          |
-| modelo_tipo              | VARCHAR(20)  | NOT NULL      | Tipo de modelo (ej: 'multilabel_classifier')         |
-| modelo_version           | VARCHAR(50)  |               | Versión del modelo BERT utilizado                    |
-| trastornos_detectados    | JSONB        | NOT NULL      | Trastornos detectados con probabilidades en formato JSON |
-| condiciones_detectadas   | TEXT[]       |               | Array de nombres de condiciones detectadas           |
-| nivel_riesgo_global      | VARCHAR(20)  |               | Nivel de riesgo: 'bajo', 'moderado', 'alto'          |
-| palabras_clave           | JSONB        |               | Palabras clave identificadas en el texto             |
-| interpretacion           | TEXT         |               | Interpretación generada por el modelo                |
-| metricas_modelo          | JSONB        |               | Métricas de confianza del modelo                     |
-| requiere_atencion        | BOOLEAN      | DEFAULT false | Indicador de atención urgente requerida              |
-| notas_sistema            | TEXT         |               | Notas adicionales del sistema                        |
+Observaciones registradas por el especialista sobre una respuesta diaria del paciente.
+
+| Campo          | Tipo      | Restricciones         | Descripción                                   |
+| -------------- | --------- | --------------------- | --------------------------------------------- |
+| id_observacion | BIGSERIAL | PRIMARY KEY           | Identificador único de la observación         |
+| id_respuesta   | BIGINT    | FOREIGN KEY, NOT NULL | Referencia a paciente_respuesta(id_respuesta) |
+| descripcion    | TEXT      | NOT NULL              | Contenido de la observación                   |
 
 **Relaciones:**
+
+- **FK**: `id_respuesta` → `paciente_respuesta(id_respuesta)` (usado en WHERE e INSERT)
+
+**Índices:**
+
+```sql
+CREATE INDEX idx_observacion_respuesta ON observacion(id_respuesta);
+```
+
+### evaluacion_ml
+
+Almacena los resultados de la evaluación de Machine Learning sobre las respuestas del paciente. Contiene las predicciones del modelo sobre trastornos mentales detectados.
+
+| Campo                  | Tipo         | Restricciones         | Descripción                                              |
+| ---------------------- | ------------ | --------------------- | -------------------------------------------------------- |
+| id_evaluacion          | BIGSERIAL    | PRIMARY KEY           | Identificador único de la evaluación                     |
+| id_respuesta           | BIGINT       | FOREIGN KEY, NOT NULL | Referencia a paciente_respuesta(id_respuesta)            |
+| fecha_evaluacion       | TIMESTAMP    | DEFAULT NOW, NOT NULL | Fecha y hora de la evaluación                            |
+| modelo_nombre          | VARCHAR(100) | NOT NULL              | Nombre del modelo utilizado                              |
+| modelo_tipo            | VARCHAR(20)  | NOT NULL              | Tipo de modelo (ej: 'multilabel_classifier')             |
+| modelo_version         | VARCHAR(50)  |                       | Versión del modelo BERT utilizado                        |
+| trastornos_detectados  | JSONB        | NOT NULL              | Trastornos detectados con probabilidades en formato JSON |
+| condiciones_detectadas | TEXT[]       |                       | Array de nombres de condiciones detectadas               |
+| nivel_riesgo_global    | VARCHAR(20)  |                       | Nivel de riesgo: 'bajo', 'moderado', 'alto'              |
+| palabras_clave         | JSONB        |                       | Palabras clave identificadas en el texto                 |
+| interpretacion         | TEXT         |                       | Interpretación generada por el modelo                    |
+| metricas_modelo        | JSONB        |                       | Métricas de confianza del modelo                         |
+| requiere_atencion      | BOOLEAN      | DEFAULT false         | Indicador de atención urgente requerida                  |
+| notas_sistema          | TEXT         |                       | Notas adicionales del sistema                            |
+
+**Relaciones:**
+
 - **FK**: `id_respuesta` → `paciente_respuesta(id_respuesta)` (usado en INSERT)
 
 **Índices:**
+
 ```sql
 -- Índice crítico para JOIN desde paciente_respuesta
 CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta);
 ```
 
 ### evaluacion_validacion
+
 Validación del especialista sobre los resultados de la evaluación de ML. Permite comparar las predicciones del modelo con el diagnóstico profesional para mejorar el sistema.
 
-| Campo                       | Tipo         | Restricciones | Descripción                                          |
-|-----------------------------|--------------|---------------|------------------------------------------------------|
-| id_validacion               | BIGSERIAL    | PRIMARY KEY   | Identificador único de la validación                 |
-| id_evaluacion               | BIGINT       | FOREIGN KEY, NOT NULL | Referencia a evaluacion_ml(id_evaluacion)     |
-| id_especialista             | BIGINT       | FOREIGN KEY, NOT NULL | Especialista que realiza la validación        |
-| fecha_validacion            | TIMESTAMP    | DEFAULT NOW, NOT NULL | Fecha y hora de la validación                 |
-| diagnostico_especialista    | JSONB        | NOT NULL      | Diagnóstico del especialista en formato JSON         |
-| coincidencias               | JSONB        |               | Análisis de coincidencias entre ML y especialista    |
-| precision_global            | VARCHAR(20)  | NOT NULL      | Precisión: 'alta', 'media', 'baja'                   |
-| falsos_positivos            | TEXT[]       |               | Trastornos detectados por ML pero no por especialista|
-| falsos_negativos            | TEXT[]       |               | Trastornos no detectados por ML pero sí por especialista|
-| nivel_confianza             | INT          |               | Nivel de confianza del especialista (0-100)          |
-| observaciones               | TEXT         |               | Observaciones del especialista                       |
-| recomendacion_paciente      | TEXT         |               | Recomendaciones para el tratamiento del paciente     |
-| requiere_seguimiento        | BOOLEAN      | DEFAULT false | Indicador de seguimiento requerido                   |
-| util_para_entrenamiento     | BOOLEAN      | DEFAULT true  | Si la validación es útil para reentrenar el modelo   |
+| Campo                    | Tipo        | Restricciones         | Descripción                                              |
+| ------------------------ | ----------- | --------------------- | -------------------------------------------------------- |
+| id_validacion            | BIGSERIAL   | PRIMARY KEY           | Identificador único de la validación                     |
+| id_evaluacion            | BIGINT      | FOREIGN KEY, NOT NULL | Referencia a evaluacion_ml(id_evaluacion)                |
+| id_especialista          | BIGINT      | FOREIGN KEY, NOT NULL | Especialista que realiza la validación                   |
+| fecha_validacion         | TIMESTAMP   | DEFAULT NOW, NOT NULL | Fecha y hora de la validación                            |
+| diagnostico_especialista | JSONB       | NOT NULL              | Diagnóstico del especialista en formato JSON             |
+| coincidencias            | JSONB       |                       | Análisis de coincidencias entre ML y especialista        |
+| precision_global         | VARCHAR(20) | NOT NULL              | Precisión: 'alta', 'media', 'baja'                       |
+| falsos_positivos         | TEXT[]      |                       | Trastornos detectados por ML pero no por especialista    |
+| falsos_negativos         | TEXT[]      |                       | Trastornos no detectados por ML pero sí por especialista |
+| nivel_confianza          | INT         |                       | Nivel de confianza del especialista (0-100)              |
+| observaciones            | TEXT        |                       | Observaciones del especialista                           |
+| recomendacion_paciente   | TEXT        |                       | Recomendaciones para el tratamiento del paciente         |
+| requiere_seguimiento     | BOOLEAN     | DEFAULT false         | Indicador de seguimiento requerido                       |
+| util_para_entrenamiento  | BOOLEAN     | DEFAULT true          | Si la validación es útil para reentrenar el modelo       |
 
 **Relaciones:**
+
 - **FK**: `id_evaluacion` → `evaluacion_ml(id_evaluacion)`
 - **FK**: `id_especialista` → `especialista(id_especialista)`
 
@@ -301,6 +339,12 @@ CREATE TABLE "paciente_respuesta" (
   "error_mensaje" TEXT
 );
 
+CREATE TABLE "observacion" (
+  "id_observacion" BIGSERIAL PRIMARY KEY,
+  "id_respuesta" BIGINT NOT NULL,
+  "descripcion" TEXT NOT NULL
+);
+
 CREATE TABLE "evaluacion_ml" (
   "id_evaluacion" BIGSERIAL PRIMARY KEY,
   "id_respuesta" BIGINT NOT NULL,
@@ -357,6 +401,29 @@ ALTER TABLE "paciente_medicacion"
   FOREIGN KEY ("id_historia")
   REFERENCES "historia_clinica" ("id_historia");
 
+-- Foreign Keys para paciente_respuesta
+ALTER TABLE "paciente_respuesta"
+  ADD CONSTRAINT "fk_respuesta_paciente"
+  FOREIGN KEY ("id_paciente")
+  REFERENCES "paciente" ("id_paciente");
+
+ALTER TABLE "paciente_respuesta"
+  ADD CONSTRAINT "fk_respuesta_evaluacion"
+  FOREIGN KEY ("id_evaluacion")
+  REFERENCES "evaluacion_ml" ("id_evaluacion");
+
+-- Foreign Key para observacion
+ALTER TABLE "observacion"
+  ADD CONSTRAINT "fk_observacion_respuesta"
+  FOREIGN KEY ("id_respuesta")
+  REFERENCES "paciente_respuesta" ("id_respuesta");
+
+-- Foreign Key para evaluacion_ml
+ALTER TABLE "evaluacion_ml"
+  ADD CONSTRAINT "fk_evaluacion_respuesta"
+  FOREIGN KEY ("id_respuesta")
+  REFERENCES "paciente_respuesta" ("id_respuesta");
+
 -- Índices para tabla paciente
 CREATE INDEX idx_paciente_dni ON paciente(dni); -- Usado en login (WHERE dni = ?)
 CREATE INDEX idx_paciente_activo ON paciente(flg_activo); -- Usado en filtros
@@ -381,6 +448,9 @@ CREATE INDEX idx_respuesta_paciente_fecha ON paciente_respuesta(id_paciente, fec
 CREATE INDEX idx_respuesta_evaluacion ON paciente_respuesta(id_evaluacion); -- FK usado en LEFT JOIN
 CREATE INDEX idx_respuesta_estado ON paciente_respuesta(estado_procesamiento); -- Filtros por estado
 
+-- Índice para tabla observacion
+CREATE INDEX idx_observacion_respuesta ON observacion(id_respuesta); -- FK usado en WHERE e INSERT
+
 -- Índices para tabla evaluacion_ml
 CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usado en LEFT JOIN
 ```
@@ -388,11 +458,13 @@ CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usad
 ## Sistema de Autenticación y Roles
 
 ### Roles disponibles:
+
 - **admin**: Acceso total al sistema, gestión de usuarios y configuración
 - **coordinador**: Acceso a reportes, supervisión de casos, asignación de pacientes
 - **especialista**: Acceso a sus pacientes asignados, creación de historias clínicas
 
 ### Campos de autenticación en tabla especialista:
+
 - `usuario`: Nombre único para login (ej: "mgonzalez")
 - `password_hash`: Hash bcrypt de la contraseña (nunca almacenar en texto plano)
 - `rol`: Define nivel de acceso y permisos
@@ -401,6 +473,7 @@ CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usad
 - `bloqueado_hasta`: Bloqueo temporal tras múltiples intentos fallidos
 
 ### Campos de autenticación en tabla paciente:
+
 - `dni`: Se usa como nombre de usuario para login
 - `password_hash`: Hash bcrypt de la contraseña
 - `ultimo_acceso`: Auditoría de sesiones
@@ -408,6 +481,7 @@ CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usad
 - `bloqueado_hasta`: Bloqueo temporal tras múltiples intentos fallidos
 
 ### Flujo de autenticación:
+
 1. Usuario ingresa credenciales (usuario/dni + contraseña)
 2. Sistema busca usuario en tabla correspondiente (especialista o paciente)
 3. Valida contraseña usando bcrypt.compare()
@@ -417,6 +491,7 @@ CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usad
 7. Crea sesión con datos del usuario
 
 ### Políticas de seguridad:
+
 - Bloquear cuenta por 15 minutos tras 5 intentos fallidos de login
 - Expirar sesiones después de 30 minutos de inactividad
 - Requerir contraseñas con mínimo 8 caracteres, mayúsculas, minúsculas y números
@@ -592,6 +667,7 @@ VALUES
 ## Migración de Datos
 
 Si necesitas migrar datos existentes o cambiar el esquema, documentar todas las migraciones en:
+
 - `frontend/src/lib/server/db/migrations/`
 
 ## Notas Técnicas

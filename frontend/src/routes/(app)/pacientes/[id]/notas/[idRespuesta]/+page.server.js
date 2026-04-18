@@ -18,8 +18,11 @@ export async function load({ params }) {
 		throw error(404, 'Respuesta no encontrada');
 	}
 
+	const observaciones = await respuestasService.getObservacionesByRespuesta(idRespuesta);
+
 	return {
 		paciente,
-		respuesta
+		respuesta,
+		observaciones
 	};
 }

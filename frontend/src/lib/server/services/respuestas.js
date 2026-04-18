@@ -117,7 +117,9 @@ export async function getRespuestasDelDia(idPaciente) {
 		ORDER BY pr.fecha_respuesta DESC
 	`;
 
-	console.log(`📋 Historial del día (Paciente ${idPaciente}): ${respuestas.length} respuesta(s) encontrada(s)`);
+	console.log(
+		`📋 Historial del día (Paciente ${idPaciente}): ${respuestas.length} respuesta(s) encontrada(s)`
+	);
 
 	return respuestas;
 }
@@ -176,7 +178,12 @@ export async function createRespuesta(data) {
  * @param {string|null} errorMensaje - Mensaje de error (si hubo error)
  * @returns {Promise<Object>} - Respuesta actualizada
  */
-export async function updateEstadoRespuesta(idRespuesta, estado, idEvaluacion = null, errorMensaje = null) {
+export async function updateEstadoRespuesta(
+	idRespuesta,
+	estado,
+	idEvaluacion = null,
+	errorMensaje = null
+) {
 	const [respuesta] = await sql`
 		UPDATE paciente_respuesta
 		SET
@@ -256,4 +263,68 @@ export async function getRespuestaDetalle(idRespuesta) {
 	`;
 
 	return respuesta;
+}
+
+/**
+ * Obtiene las observaciones asociadas a una respuesta
+ * @param {number} idRespuesta - ID de la respuesta
+ * @returns {Promise<Array>} - Array de observaciones
+ */
+export async function getObservacionesByRespuesta(idRespuesta) {
+	const observaciones = await sql`
+		SELECT
+			id_observacion,
+			id_respuesta,
+			descripcion
+		FROM observacion
+		WHERE id_respuesta = ${idRespuesta}
+		ORDER BY id_observacion ASC
+	`;
+
+	return observaciones;
+}
+
+/**
+ * Reemplaza todas las observaciones de una respuesta
+ * @param {number} idRespuesta - ID de la respuesta
+ * @param {string[]} observaciones - Descripciones de observaciones
+ * @returns {Promise<Array>} - Observaciones guardadas
+ */
+export async function replaceObservacionesByRespuesta(idRespuesta, observaciones) {
+	const observacionesLimpias = observaciones
+		.map((observacion) => observacion.trim())
+		.filter(Boolean);
+
+	return sql.begin(async (tx) => {
+		await tx`
+			DELETE FROM observacion
+			WHERE id_respuesta = ${idRespuesta}
+		`;
+
+		if (observacionesLimpias.length === 0) {
+			return [];
+		}
+
+		const observacionesGuardadas = [];
+
+		for (const descripcion of observacionesLimpias) {
+			const [observacion] = await tx`
+				INSERT INTO observacion (
+					id_respuesta,
+					descripcion
+				) VALUES (
+					${idRespuesta},
+					${descripcion}
+				)
+				RETURNING
+					id_observacion,
+					id_respuesta,
+					descripcion
+			`;
+
+			observacionesGuardadas.push(observacion);
+		}
+
+		return observacionesGuardadas;
+	});
 }
