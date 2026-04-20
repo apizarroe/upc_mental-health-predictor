@@ -115,11 +115,11 @@ class ModelTester:
         result = self.pipeline.predict_text(
             conversation_text,
             return_probabilities=True,
-            clean_input=False  # Ya viene limpio del preprocessor
+            return_probabilities=True
         )
 
         # Verificar si es modelo multi-etiqueta o binario
-        if self.pipeline.is_multi_label:
+        if self.pipeline.is_multilabel_model():
             # Formato multi-etiqueta
             dep_pred = result['predictions']['depression']
             anx_pred = result['predictions']['anxiety']
@@ -366,7 +366,7 @@ class ModelTester:
             text = self.extract_conversation_text(conversation)
 
             # Predicción del modelo
-            result = self.pipeline.predict_text(text, return_probabilities=True, clean_input=False)
+            result = self.pipeline.predict_text(text, return_probabilities=True)
 
             # Procesar cada condición
             for cond in conditions_to_eval:
@@ -557,7 +557,7 @@ class ModelTester:
             prediction, prob, details = self.predict_conversation(clean_text_str, show_details=True)
 
             # Etiqueta heurística (para comparación)
-            if self.pipeline.is_multi_label:
+            if self.pipeline.is_multilabel_model():
                 heuristic_labels = self.preprocessor.detect_multi_label(clean_text_str)
                 heuristic_dep = heuristic_labels[0]
                 heuristic_anx = heuristic_labels[1]

@@ -1,0 +1,31 @@
+{
+  "model_type": "logistic_regression_binary_pair",
+  "bert_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "labels": [
+    "depression",
+    "anxiety",
+    "neutral"
+  ],
+  "label_map": {
+    "depression": 0,
+    "anxiety": 1,
+    "neutral": 2
+  },
+  "created_at": "2026-04-20T05:22:40.788831+00:00",
+  "training_samples": 800,
+  "test_samples": 200,
+  "hyperparams": {
+    "C": 1.0,
+    "class_weight": "balanced",
+    "solver": "lbfgs"
+  },
+  "feature_dim": 384,
+  "embedding_dim": 384,
+  "metrics": {
+    "f1_depression": 0.0,
+    "f1_anxiety": 0.0,
+    "f1_weighted": 0.0,
+    "accuracy_depression": 0.765,
+    "accuracy_anxiety": 0.615
+  }
+}

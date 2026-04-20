@@ -1,267 +1,272 @@
 #!/usr/bin/env python3
 """
-Script CLI para entrenar el modelo BERT + XGBoost
-para detección de trastornos mentales.
+Script de entrenamiento: MiniLM embeddings + keyword scores + Logistic Regression.
 
-Soporta modelos binarios (solo depresión) y multi-etiqueta (depresión + ansiedad).
+Requiere haber ejecutado antes:
+    python scripts/cluster_and_label.py
 
 Uso:
-    # Entrenar modelo multi-etiqueta (default)
     python scripts/train.py
-
-    # Entrenar modelo binario (solo depresión)
-    python scripts/train.py --binary
-
-    # Con modelo BERT específico
-    python scripts/train.py --bert-model dccuchile/bert-base-spanish-wwm-cased
-
-    # Con datos personalizados
-    python scripts/train.py --data-path data/datasets/custom_data.parquet
+    python scripts/train.py --data-path data/datasets/labeled_dataset.csv
+    python scripts/train.py --output-dir data/trained_models
 """
 
-# IMPORTANTE: Configurar variables de entorno ANTES de cualquier import
-# Fix para macOS: Prevenir crash por conflicto entre libiomp5 y libomp
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-os.environ['OMP_NUM_THREADS'] = '4'
-os.environ['MKL_NUM_THREADS'] = '4'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 import argparse
+import json
+import pickle
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-# Agregar el directorio backend al path
+import numpy as np
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score, classification_report, f1_score, precision_score, recall_score
+)
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
+
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from app.ml.training_pipeline import TrainingPipeline
+from app.ml.text_processing import clean_text
+
+# ---------------------------------------------------------------------------
+# Keywords con pesos — deben mantenerse sincronizadas con preprocessor.py
+# ---------------------------------------------------------------------------
+
+DEPRESSION_KEYWORDS = {
+    # Frases del dataset real — variantes masculino/femenino (peso 2)
+    'me siento muy triste': 2, 'me siento triste': 2,
+    'me siento tan perdida': 2, 'me siento tan perdido': 2,
+    'me siento perdido': 2, 'me siento perdida': 2,
+    'siento que ya no': 2, 'siento que no importa': 2,
+    'siento que he perdido': 2, 'siento que no soy': 2,
+    'no puedo evitar sentirme': 2, 'siento que estoy atrapado': 2,
+    'siento que estoy atrapada': 2,
+    'ya no sé qué': 2, 'ya no sé cómo': 2,
+    'estoy cansado de': 2, 'estoy cansada de': 2,
+    'me siento solo': 2, 'me siento sola': 2,
+    'me siento vacío': 2, 'me siento vacía': 2,
+    'me siento un fracaso': 2, 'no quiero seguir': 2,
+    'me siento culpable': 2, 'me siento avergonzado': 2, 'me siento avergonzada': 2,
+    'dolor emocional': 2, 'no vale la pena': 2, 'sin esperanza': 2,
+    'perdí las ganas': 2, 'me siento invisible': 2,
+    'nadie me entiende': 2, 'quisiera desaparecer': 2,
+    'me da igual todo': 2, 'todo me cuesta': 2,
+    'ya no disfruto': 2, 'no encuentro sentido': 2,
+    'siento que no tiene sentido': 2, 'me siento muy sola': 2, 'me siento muy solo': 2,
+    # Palabras exclusivas (peso 1)
+    'anhedonia': 1, 'desesperanza': 1, 'apatía': 1, 'desgano': 1,
+    'melancolía': 1, 'autoculpa': 1, 'abatido': 1, 'abatida': 1,
+    'desanimado': 1, 'desanimada': 1, 'hundido': 1, 'hundida': 1,
+    'desvalido': 1, 'resignado': 1, 'resignada': 1,
+    'decaído': 1, 'decaída': 1, 'letárgico': 1, 'letárgica': 1,
+    'agotado': 1, 'agotada': 1, 'sin energía': 1, 'sin fuerzas': 1,
+    'sin motivación': 1, 'sin ganas': 1, 'desesperado': 1, 'desesperada': 1,
+    'triste': 1, 'tristeza': 1, 'lloro': 1, 'llorar': 1, 'llorando': 1,
+    'vacío': 1, 'vacía': 1, 'inútil': 1,
+}
+
+ANXIETY_KEYWORDS = {
+    # Frases del dataset real — variantes masculino/femenino (peso 2)
+    'me siento ansioso': 2, 'me siento ansiosa': 2,
+    'me siento muy ansioso': 2, 'me siento muy ansiosa': 2,
+    'estoy ansioso': 2, 'estoy ansiosa': 2,
+    'constantemente preocupado': 2, 'constantemente preocupada': 2,
+    'siento que estoy constantemente': 2,
+    'no puedo deshacerme de': 2, 'no puedo evitar sentir': 2,
+    'no puedo escapar': 2, 'tengo miedo de que': 2,
+    'me siento abrumado': 2, 'me siento abrumada': 2,
+    'me siento abrumado por': 2, 'me siento abrumada por': 2,
+    'siento que me estoy': 2, 'pensamientos negativos': 2,
+    'no puedo concentrarme': 2, 'no puedo dormir': 2,
+    'siento que pierdo el control': 2, 'siento que algo malo': 2,
+    'mi mente no para': 2, 'no puedo relajarme': 2,
+    'me cuesta respirar': 2, 'siento el corazón acelerado': 2,
+    'no puedo con tanto': 2, 'todo me genera angustia': 2,
+    # Frases de ansiedad laboral/situacional (peso 2)
+    'bajo mucha presión': 2, 'bajo una presión': 2,
+    'fuente de estrés': 2, 'mucho estrés': 2, 'demasiado estrés': 2,
+    'estrés constante': 2, 'constantemente estresado': 2, 'constantemente estresada': 2,
+    'no puedo tomar un descanso': 2, 'no puedo descansar': 2,
+    'lucha constante': 2, 'siento como si estuviera constantemente': 2,
+    'afectando mi bienestar': 2, 'afecta mi salud mental': 2,
+    'me resulta difícil': 2, 'difícil mantener el equilibrio': 2,
+    # Palabras exclusivas (peso 1)
+    'hiperventilación': 1, 'taquicardia': 1, 'rumiación': 1, 'catastrofismo': 1,
+    'pánico': 1, 'angustia': 1, 'inquietud': 1, 'hipervigilancia': 1,
+    'irritabilidad': 1, 'temor constante': 1, 'ansiedad': 1, 'estrés': 1,
+    'inquieto': 1, 'inquieta': 1, 'nervioso': 1, 'nerviosa': 1,
+    'preocupación': 1, 'tensión': 1, 'sobresaltado': 1, 'sobresaltada': 1,
+}
+
+BERT_MODEL = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
+LABELS = ['depression', 'anxiety', 'neutral']
+LABEL_MAP = {'depression': 0, 'anxiety': 1, 'neutral': 2}
 
 
-def parse_args():
-    """Parsea argumentos de línea de comandos."""
-    parser = argparse.ArgumentParser(
-        description='Entrenar modelo BERT + XGBoost para detección de trastornos mentales',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Ejemplos de uso:
-    # Entrenamiento multi-etiqueta (depresión + ansiedad) - DEFAULT
-    python scripts/train.py
+def compute_keyword_score(text: str, keywords: dict) -> float:
+    text_lower = text.lower()
+    return sum(w for kw, w in keywords.items() if kw in text_lower)
 
-    # Entrenamiento binario (solo depresión)
-    python scripts/train.py --binary
 
-    # Con modelo BERT específico
-    python scripts/train.py --bert-model bert-base-multilingual-cased
-
-    # Con datos personalizados
-    python scripts/train.py --data-path mi_dataset.parquet
-
-    # Configuración personalizada
-    python scripts/train.py --test-size 0.25 --batch-size 32 --n-estimators 200
-        """
-    )
-
-    parser.add_argument(
-        '--data-path',
-        type=str,
-        default='data/datasets/train-00000-of-00001.parquet',
-        help='Ruta al archivo parquet con datos de entrenamiento'
-    )
-
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='data/trained_models',
-        help='Directorio donde guardar el modelo entrenado'
-    )
-
-    parser.add_argument(
-        '--bert-model',
-        type=str,
-        default='PlanTL-GOB-ES/roberta-base-biomedical-es',
-        help='Nombre del modelo BERT/RoBERTa pre-entrenado a usar'
-    )
-
-    parser.add_argument(
-        '--model-name',
-        type=str,
-        default=None,
-        help='Nombre para el modelo guardado (default: timestamp)'
-    )
-
-    parser.add_argument(
-        '--binary',
-        action='store_true',
-        help='Entrenar modelo binario (solo depresión). Por defecto entrena multi-etiqueta.'
-    )
-
-    parser.add_argument(
-        '--test-size',
-        type=float,
-        default=0.2,
-        help='Proporción de datos para test (default: 0.2)'
-    )
-
-    parser.add_argument(
-        '--val-size',
-        type=float,
-        default=0.1,
-        help='Proporción de datos para validación (default: 0.1)'
-    )
-
-    parser.add_argument(
-        '--max-length',
-        type=int,
-        default=512,
-        help='Longitud máxima de tokens para BERT (default: 512)'
-    )
-
-    parser.add_argument(
-        '--batch-size',
-        type=int,
-        default=16,
-        help='Tamaño de batch para BERT (default: 16)'
-    )
-
-    parser.add_argument(
-        '--n-estimators',
-        type=int,
-        default=150,
-        help='Número de estimadores para XGBoost (default: 150)'
-    )
-
-    parser.add_argument(
-        '--max-depth',
-        type=int,
-        default=5,
-        help='Profundidad máxima de árboles XGBoost (default: 5)'
-    )
-
-    parser.add_argument(
-        '--learning-rate',
-        type=float,
-        default=0.08,
-        help='Tasa de aprendizaje XGBoost (default: 0.08)'
-    )
-
-    parser.add_argument(
-        '--random-state',
-        type=int,
-        default=42,
-        help='Semilla aleatoria para reproducibilidad (default: 42)'
-    )
-
-    return parser.parse_args()
+def build_features(texts: list[str], embeddings: np.ndarray) -> np.ndarray:
+    """Concatena embeddings BERT con keyword scores normalizados."""
+    dep_scores = np.array([[compute_keyword_score(t, DEPRESSION_KEYWORDS)] for t in texts])
+    anx_scores = np.array([[compute_keyword_score(t, ANXIETY_KEYWORDS)] for t in texts])
+    max_dep = dep_scores.max() or 1
+    max_anx = anx_scores.max() or 1
+    dep_norm = dep_scores / max_dep
+    anx_norm = anx_scores / max_anx
+    return np.hstack([embeddings, dep_norm, anx_norm])
 
 
 def main():
-    """Función principal."""
-    args = parse_args()
+    parser = argparse.ArgumentParser(description='Entrenar clasificador de salud mental')
+    parser.add_argument('--data-path', default='data/datasets/labeled_dataset.csv')
+    parser.add_argument('--output-dir', default='data/trained_models')
+    parser.add_argument('--test-size', type=float, default=0.2)
+    parser.add_argument('--random-state', type=int, default=42)
+    parser.add_argument('--C', type=float, default=1.0, help='Regularización Logistic Regression')
+    args = parser.parse_args()
 
-    # Determinar tipo de modelo
-    multi_label = not args.binary
-    model_type_str = "Multi-Etiqueta (Depresión + Ansiedad)" if multi_label else "Binario (Solo Depresión)"
+    data_path = backend_dir / args.data_path
+    output_dir = backend_dir / args.output_dir
 
-    # Verificar que existe el archivo de datos
-    data_path = Path(args.data_path)
     if not data_path.exists():
-        print(f"❌ Error: No se encontró el archivo de datos: {data_path}")
-        print(f"   Ruta completa: {data_path.absolute()}")
+        print(f"❌ No se encontró {data_path}")
+        print("   Ejecuta primero: python scripts/cluster_and_label.py")
         sys.exit(1)
 
-    print("🚀 Iniciando entrenamiento de modelo")
-    print(f"   • Tipo: {model_type_str}")
-    print(f"   • Datos: {data_path}")
-    print(f"   • Modelo BERT: {args.bert_model}")
-    print(f"   • Output: {args.output_dir}")
-    print()
+    print("=" * 70)
+    print("ENTRENAMIENTO: MiniLM + Keyword Scores + Logistic Regression")
+    print("=" * 70)
 
-    try:
-        # Crear pipeline con soporte multi-etiqueta
-        pipeline = TrainingPipeline(
-            data_path=str(data_path),
-            output_dir=args.output_dir,
-            test_size=args.test_size,
-            val_size=args.val_size,
-            random_state=args.random_state,
-            multi_label=multi_label
+    # ------------------------------------------------------------------
+    # PASO 1: Cargar dataset etiquetado
+    # ------------------------------------------------------------------
+    print(f"\n[1/5] Cargando dataset: {data_path}")
+    df = pd.read_csv(data_path)
+    print(f"      {len(df)} ejemplos cargados")
+    print(f"      Distribución:")
+    for label, count in df['label'].value_counts().items():
+        print(f"        {label:12s}: {count} ({count/len(df)*100:.1f}%)")
+
+    texts = df['text'].fillna('').tolist()
+    y = df['label_id'].values
+
+    # ------------------------------------------------------------------
+    # PASO 2: Generar embeddings MiniLM
+    # ------------------------------------------------------------------
+    print(f"\n[2/5] Generando embeddings con {BERT_MODEL}")
+    model = SentenceTransformer(BERT_MODEL)
+    embeddings = model.encode(texts, batch_size=32, show_progress_bar=True, convert_to_numpy=True)
+    embeddings = normalize(embeddings)
+    print(f"      Shape: {embeddings.shape}")
+
+    # ------------------------------------------------------------------
+    # PASO 3: Construir features (embeddings + keyword scores)
+    # ------------------------------------------------------------------
+    print(f"\n[3/5] Construyendo features combinadas")
+    X = build_features(texts, embeddings)
+    print(f"      Shape features: {X.shape}  (embeddings={embeddings.shape[1]}, keyword_scores=2)")
+
+    # ------------------------------------------------------------------
+    # PASO 4: Entrenar dos clasificadores binarios independientes
+    # ------------------------------------------------------------------
+    print(f"\n[4/5] Entrenando clasificadores binarios (C={args.C})")
+
+    # Etiquetas binarias: 1 si es la condición, 0 si no (ansiedad o neutral → 0 para dep_clf)
+    y_dep = (df['score_depression'].fillna(0) >= 2).astype(int).values
+    y_anx = (df['score_anxiety'].fillna(0) >= 2).astype(int).values
+
+    indices = list(range(len(X)))
+    train_idx, test_idx = train_test_split(
+        indices, test_size=args.test_size, random_state=args.random_state
+    )
+    X_train = X[train_idx]
+    X_test  = X[test_idx]
+
+    def train_binary(y_all, name):
+        y_tr = y_all[train_idx]
+        y_te = y_all[test_idx]
+        base_clf = LogisticRegression(
+            C=args.C, max_iter=1000, random_state=args.random_state,
+            class_weight='balanced', solver='lbfgs'
         )
+        # Calibración isotónica: corrige probabilidades extremas (0%/100%)
+        # cv=5 usa cross-validation interna para aprender la curva de calibración
+        clf = CalibratedClassifierCV(base_clf, method='isotonic', cv=5)
+        clf.fit(X_train, y_tr)
+        pred = clf.predict(X_test)
+        f1  = f1_score(y_te, pred, zero_division=0)
+        acc = accuracy_score(y_te, pred)
+        print(f"  {name}: accuracy={acc:.4f}  F1={f1:.4f}")
+        print(classification_report(y_te, pred, target_names=[f'no_{name}', name], zero_division=0))
+        return clf, float(f1), float(acc)
 
-        # Preparar datos
-        pipeline.prepare_data()
+    print(f"      Train: {len(train_idx)}  |  Test: {len(test_idx)}")
+    clf_dep, f1_dep, acc_dep = train_binary(y_dep, 'depression')
+    clf_anx, f1_anx, acc_anx = train_binary(y_anx, 'anxiety')
 
-        # Generar embeddings
-        pipeline.generate_embeddings(
-            model_name=args.bert_model,
-            max_length=args.max_length,
-            batch_size=args.batch_size
-        )
+    # ------------------------------------------------------------------
+    # PASO 5: Guardar modelo y metadata
+    # ------------------------------------------------------------------
+    print(f"[5/5] Guardando modelo")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    model_filename = f"mental_health_lr_{timestamp}.pkl"
+    metadata_filename = f"mental_health_lr_{timestamp}_metadata.json"
 
-        # Dividir datos
-        pipeline.split_data()
+    model_path = output_dir / model_filename
+    metadata_path = output_dir / metadata_filename
 
-        # Entrenar clasificador
-        pipeline.train_classifier(
-            n_estimators=args.n_estimators,
-            max_depth=args.max_depth,
-            learning_rate=args.learning_rate
-        )
+    # Guardamos los dos clasificadores juntos en un dict
+    with open(model_path, 'wb') as f:
+        pickle.dump({'depression': clf_dep, 'anxiety': clf_anx}, f)
 
-        # Evaluar
-        test_metrics = pipeline.evaluate()
+    metadata = {
+        'model_type': 'logistic_regression_binary_pair',
+        'bert_model': BERT_MODEL,
+        'labels': LABELS,
+        'label_map': LABEL_MAP,
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'training_samples': len(train_idx),
+        'test_samples': len(test_idx),
+        'hyperparams': {'C': args.C, 'class_weight': 'balanced', 'solver': 'lbfgs'},
+        'feature_dim': X.shape[1],
+        'embedding_dim': embeddings.shape[1],
+        'metrics': {
+            'f1_depression': f1_dep,
+            'f1_anxiety': f1_anx,
+            'f1_weighted': (f1_dep + f1_anx) / 2,
+            'accuracy_depression': acc_dep,
+            'accuracy_anxiety': acc_anx,
+        },
+    }
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-        # Guardar modelo
-        model_path, metadata_path = pipeline.save_model(args.model_name)
+    print(f"\n  Modelo:   {model_path}")
+    print(f"  Metadata: {metadata_path}")
 
-        print("\n" + "=" * 80)
-        print("✅ ENTRENAMIENTO COMPLETADO EXITOSAMENTE")
-        print("=" * 80)
-
-        # Mostrar métricas según tipo de modelo
-        print(f"\n📊 Resultados finales (Test Set):")
-
-        if multi_label:
-            # Métricas multi-etiqueta
-            for label in ['depression', 'anxiety']:
-                if label in test_metrics:
-                    m = test_metrics[label]
-                    print(f"\n   📌 {label.upper()}:")
-                    print(f"      • Accuracy:  {m.get('accuracy', 0):.4f}")
-                    print(f"      • Precision: {m.get('precision', 0):.4f}")
-                    print(f"      • Recall:    {m.get('recall', 0):.4f}")
-                    print(f"      • F1-Score:  {m.get('f1_score', 0):.4f}")
-
-            if 'overall' in test_metrics:
-                print(f"\n   📈 OVERALL:")
-                print(f"      • Avg Accuracy:  {test_metrics['overall'].get('avg_accuracy', 0):.4f}")
-                print(f"      • Avg F1-Score:  {test_metrics['overall'].get('avg_f1_score', 0):.4f}")
-        else:
-            # Métricas binarias
-            print(f"   • Accuracy:  {test_metrics.get('accuracy', 0):.4f}")
-            print(f"   • Precision: {test_metrics.get('precision', 0):.4f}")
-            print(f"   • Recall:    {test_metrics.get('recall', 0):.4f}")
-            print(f"   • F1-Score:  {test_metrics.get('f1_score', 0):.4f}")
-
-        print(f"\n💾 Archivos guardados:")
-        print(f"   • {model_path}")
-        print(f"   • {metadata_path}")
-        print(f"\n🎯 Próximo paso: Validar el modelo")
-        print(f"   python scripts/test.py --random 10")
-        print()
-
-        # Salida limpia
-        sys.exit(0)
-
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Entrenamiento interrumpido por el usuario")
-        sys.exit(1)
-
-    except Exception as e:
-        print(f"\n❌ Error durante el entrenamiento: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    print("\n" + "=" * 70)
+    print("✅ ENTRENAMIENTO COMPLETADO")
+    print("=" * 70)
+    print(f"  F1 depression: {f1_dep:.4f}")
+    print(f"  F1 anxiety:    {f1_anx:.4f}")
+    print(f"\n  Siguiente paso: iniciar la API")
+    print(f"  El modelo nuevo se cargará automáticamente (es el más reciente)")
+    print("=" * 70)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

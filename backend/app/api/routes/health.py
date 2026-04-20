@@ -64,8 +64,8 @@ async def model_info(
     }
 
     # Agregar métricas si existen
-    if info.get("metrics") and "test" in info["metrics"]:
-        formatted_info["model"]["metrics"] = info["metrics"]["test"]
+    if info.get("metrics"):
+        formatted_info["model"]["metrics"] = info["metrics"]
 
     return formatted_info
 
@@ -85,7 +85,7 @@ async def root() -> Dict[str, Any]:
     return {
         "message": "Mental Health Predictor API",
         "version": "1.0.0",
-        "description": "API para predicción de depresión usando BERT + XGBoost",
+        "description": "API para predicción de depresión y ansiedad usando MiniLM + Logistic Regression",
         "endpoints": {
             "docs": "/docs",
             "health": "/api/v1/health",

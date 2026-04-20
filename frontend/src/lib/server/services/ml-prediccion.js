@@ -73,7 +73,7 @@ function calcularNivelRiesgo(predictions) {
  * @returns {boolean}
  */
 function requiereAtencion(predictions) {
-	return predictions.depression?.has_condition || predictions.anxiety?.has_condition;
+	return calcularNivelRiesgo(predictions) === 'alto';
 }
 
 /**

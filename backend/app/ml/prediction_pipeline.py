@@ -1,539 +1,332 @@
 """
-Pipeline completo de predicción: BERT + XGBoost
-para detección de trastornos mentales.
-Soporta modelos binarios (solo depresión) y multi-etiqueta (depresión + ansiedad).
+Pipeline de predicción: MiniLM embeddings + keyword scores + Logistic Regression.
+Reemplaza el pipeline anterior BERT-large + XGBoost.
 """
 
-import numpy as np
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 import json
-import sys
 import os
+import pickle
+from pathlib import Path
+from typing import Dict, List, Optional
 
-from .transformer_encoder import TransformerEncoder
-from .classifier import DepressionClassifier
-from .multi_label_classifier import MultiLabelMentalHealthClassifier
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from sklearn.preprocessing import normalize
+
 from .text_processing import clean_text
+
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+BERT_MODEL = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
+
+DEPRESSION_KEYWORDS = {
+    # Frases del dataset real — variantes masculino/femenino (peso 2)
+    'me siento muy triste': 2, 'me siento triste': 2,
+    'me he sentido muy triste': 2, 'me he sentido triste': 2, 'me he sentido solo': 2, 'me he sentido sola': 2,
+    'me siento tan perdida': 2, 'me siento tan perdido': 2,
+    'me siento perdido': 2, 'me siento perdida': 2,
+    'siento que ya no': 2, 'siento que no importa': 2,
+    'siento que he perdido': 2, 'siento que no soy': 2,
+    'no puedo evitar sentirme': 2, 'siento que estoy atrapado': 2,
+    'siento que estoy atrapada': 2,
+    'ya no sé qué': 2, 'ya no sé cómo': 2,
+    'estoy cansado de': 2, 'estoy cansada de': 2,
+    'me siento solo': 2, 'me siento sola': 2,
+    'me siento vacío': 2, 'me siento vacía': 2,
+    'me siento un fracaso': 2, 'no quiero seguir': 2,
+    'me siento culpable': 2, 'me siento avergonzado': 2, 'me siento avergonzada': 2,
+    'dolor emocional': 2, 'no vale la pena': 2, 'sin esperanza': 2,
+    'perdí las ganas': 2, 'me siento invisible': 2,
+    'nadie me entiende': 2, 'quisiera desaparecer': 2,
+    'me da igual todo': 2, 'todo me cuesta': 2,
+    'ya no disfruto': 2, 'no encuentro sentido': 2,
+    'siento que no tiene sentido': 2, 'me siento muy sola': 2, 'me siento muy solo': 2,
+    # Palabras exclusivas (peso 1)
+    'anhedonia': 1, 'desesperanza': 1, 'apatía': 1, 'desgano': 1,
+    'melancolía': 1, 'autoculpa': 1, 'abatido': 1, 'abatida': 1,
+    'desanimado': 1, 'desanimada': 1, 'hundido': 1, 'hundida': 1,
+    'desvalido': 1, 'resignado': 1, 'resignada': 1,
+    'decaído': 1, 'decaída': 1, 'letárgico': 1, 'letárgica': 1,
+    # Síntomas físicos y cognitivos de depresión (peso 1)
+    'agotado': 1, 'agotada': 1, 'sin energía': 1, 'sin fuerzas': 1,
+    'sin motivación': 1, 'sin ganas': 1, 'desesperado': 1, 'desesperada': 1,
+    'triste': 1, 'tristeza': 1, 'lloro': 1, 'llorar': 1, 'llorando': 1,
+    'vacío': 1, 'vacía': 1, 'inútil': 1,
+}
+
+ANXIETY_KEYWORDS = {
+    # Frases del dataset real — variantes masculino/femenino (peso 2)
+    'me siento ansioso': 2, 'me siento ansiosa': 2,
+    'me siento muy ansioso': 2, 'me siento muy ansiosa': 2,
+    'estoy ansioso': 2, 'estoy ansiosa': 2,
+    'constantemente preocupado': 2, 'constantemente preocupada': 2,
+    'siento que estoy constantemente': 2,
+    'no puedo deshacerme de': 2, 'no puedo evitar sentir': 2,
+    'no puedo escapar': 2, 'tengo miedo de que': 2,
+    'me siento abrumado': 2, 'me siento abrumada': 2,
+    'me siento abrumado por': 2, 'me siento abrumada por': 2,
+    'siento que me estoy': 2, 'pensamientos negativos': 2,
+    'no puedo concentrarme': 2, 'no puedo dormir': 2,
+    'siento que pierdo el control': 2, 'siento que algo malo': 2,
+    'mi mente no para': 2, 'no puedo relajarme': 2,
+    'me cuesta respirar': 2, 'siento el corazón acelerado': 2,
+    'no puedo con tanto': 2, 'todo me genera angustia': 2,
+    # Frases de ansiedad laboral/situacional (peso 2)
+    'bajo mucha presión': 2, 'bajo una presión': 2,
+    'fuente de estrés': 2, 'mucho estrés': 2, 'demasiado estrés': 2,
+    'estrés constante': 2, 'constantemente estresado': 2, 'constantemente estresada': 2,
+    'no puedo tomar un descanso': 2, 'no puedo descansar': 2,
+    'lucha constante': 2, 'siento como si estuviera constantemente': 2,
+    'afectando mi bienestar': 2, 'afecta mi salud mental': 2,
+    'me resulta difícil': 2, 'difícil mantener el equilibrio': 2,
+    # Palabras exclusivas (peso 1)
+    'hiperventilación': 1, 'taquicardia': 1, 'rumiación': 1, 'catastrofismo': 1,
+    'pánico': 1, 'angustia': 1, 'inquietud': 1, 'hipervigilancia': 1,
+    'irritabilidad': 1, 'temor constante': 1, 'ansiedad': 1, 'estrés': 1,
+    # Síntomas físicos y cognitivos de ansiedad (peso 1)
+    'inquieto': 1, 'inquieta': 1, 'nervioso': 1, 'nerviosa': 1,
+    'preocupación': 1, 'tensión': 1, 'sobresaltado': 1, 'sobresaltada': 1,
+}
+
+LABEL_MAP = {0: 'depression', 1: 'anxiety', 2: 'neutral'}
+
+
+def _keyword_score(text: str, keywords: dict) -> float:
+    t = text.lower()
+    return sum(w for kw, w in keywords.items() if kw in t)
+
+
+def _matched_keywords(text: str, keywords: dict) -> List[str]:
+    t = text.lower()
+    return [kw for kw in keywords if kw in t]
 
 
 class PredictionPipeline:
     """
-    Pipeline completo para predicción con modelo entrenado.
-
-    Soporta modelos binarios (solo depresión) y multi-etiqueta (depresión + ansiedad).
-    Auto-detecta el tipo de modelo basándose en los metadatos.
-
-    Uso:
-        # Con modelo por defecto (el más reciente)
-        pipeline = PredictionPipeline()
-        result = pipeline.predict_text("Me siento muy triste últimamente")
-
-        # El resultado incluirá depresión y ansiedad si el modelo es multi-etiqueta
+    Pipeline de predicción: MiniLM + keyword scores → Logistic Regression.
+    Carga el modelo .pkl más reciente del directorio de modelos.
     """
-
-    DEFAULT_THRESHOLDS = {
-        'depression': 0.80,
-        'anxiety': 0.75
-    }
 
     def __init__(
         self,
         model_path: Optional[str] = None,
-        models_dir: str = "data/trained_models",
-        verbose: bool = True
+        models_dir: str = 'data/trained_models',
+        verbose: bool = True,
     ):
-        """
-        Inicializa el pipeline de predicción.
-
-        Args:
-            model_path: Ruta específica al modelo .pkl (si None, usa el más reciente)
-            models_dir: Directorio donde buscar modelos
-            verbose: Mostrar información de carga
-        """
-        self.models_dir = Path(models_dir)
         self.verbose = verbose
-
-        # Componentes del pipeline
-        self.encoder: Optional[TransformerEncoder] = None
-        self.classifier: Union[DepressionClassifier, MultiLabelMentalHealthClassifier] = None
-
-        # Metadata del modelo
-        self.metadata: Optional[Dict] = None
+        self.models_dir = Path(models_dir)
+        self.metadata: Dict = {}
         self.model_name: Optional[str] = None
-        self.is_multi_label: bool = False
-        self.labels: List[str] = ['depression']
-        self.thresholds: Dict[str, float] = dict(self.DEFAULT_THRESHOLDS)
 
-        # Cargar modelo
-        if model_path:
-            self._load_model(model_path)
-        else:
-            self._load_latest_model()
+        model_file = Path(model_path) if model_path else self._find_latest_model()
+        self._load(model_file)
 
-    def _load_latest_model(self):
-        """Carga el modelo más reciente del directorio de modelos."""
+    def _find_latest_model(self) -> Path:
         if not self.models_dir.exists():
             raise FileNotFoundError(
-                f"No se encontró el directorio de modelos: {self.models_dir}\n"
-                "Primero entrena un modelo con: python scripts/train.py"
+                f"Directorio de modelos no encontrado: {self.models_dir}\n"
+                "Ejecuta: python scripts/cluster_and_label.py && python scripts/train.py"
             )
-
-        # Buscar archivos .pkl (multi-label y binarios)
-        model_files = list(self.models_dir.glob("mental_health_multilabel_*.pkl"))
-        model_files.extend(list(self.models_dir.glob("depression_bert_xgboost_*.pkl")))
-
-        if not model_files:
+        candidates = list(self.models_dir.glob('mental_health_lr_*.pkl'))
+        if not candidates:
             raise FileNotFoundError(
-                f"No se encontraron modelos entrenados en {self.models_dir}\n"
-                "Primero entrena un modelo con: python scripts/train.py"
+                f"No se encontró ningún modelo en {self.models_dir}\n"
+                "Ejecuta: python scripts/cluster_and_label.py && python scripts/train.py"
             )
+        return max(candidates, key=lambda p: p.stat().st_mtime)
 
-        # Ordenar por fecha de modificación y tomar el más reciente
-        latest_model = max(model_files, key=lambda p: p.stat().st_mtime)
-
-        if self.verbose:
-            print(f"📂 Cargando modelo más reciente: {latest_model.name}")
-
-        self._load_model(str(latest_model))
-
-    def _load_model(self, model_path: str):
-        """
-        Carga un modelo entrenado específico y su configuración.
-
-        Args:
-            model_path: Ruta al archivo .pkl del modelo
-        """
-        model_file = Path(model_path)
-
+    def _load(self, model_file: Path):
         if not model_file.exists():
-            raise FileNotFoundError(f"No se encontró el modelo: {model_path}")
+            raise FileNotFoundError(f"Modelo no encontrado: {model_file}")
 
         self.model_name = model_file.stem
 
-        # Cargar metadata para obtener configuración
         metadata_file = model_file.parent / f"{model_file.stem}_metadata.json"
-
         if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
+            with open(metadata_file) as f:
                 self.metadata = json.load(f)
 
-            # Detectar tipo de modelo
-            self.is_multi_label = self.metadata.get('model_type') == 'multi_label'
-            self.labels = self.metadata.get('labels', ['depression'])
-            self.thresholds = self._resolve_thresholds(self.metadata)
+        with open(model_file, 'rb') as f:
+            payload = pickle.load(f)
 
-            bert_model = self.metadata.get('bert_model', 'dccuchile/bert-base-spanish-wwm-cased')
-            max_length = self.metadata.get('max_length', 512)
-
-            if self.verbose:
-                print(f"\n📋 Configuración del modelo:")
-                print(f"   • Nombre: {self.model_name}")
-                print(f"   • Tipo: {'Multi-Etiqueta' if self.is_multi_label else 'Binario'}")
-                print(f"   • Etiquetas: {self.labels}")
-                print(f"   • BERT model: {bert_model}")
-                print(f"   • Max length: {max_length}")
-                print(f"   • Thresholds: {self.thresholds}")
-                print(f"   • Entrenado: {self.metadata.get('created_at', 'N/A')}")
-
-                # Mostrar métricas si existen
-                if 'metrics' in self.metadata and 'test' in self.metadata['metrics']:
-                    test_metrics = self.metadata['metrics']['test']
-                    print(f"\n📊 Métricas del modelo (Test Set):")
-
-                    if self.is_multi_label:
-                        # Métricas por etiqueta
-                        for label in self.labels:
-                            if label in test_metrics:
-                                m = test_metrics[label]
-                                print(f"   📌 {label.upper()}:")
-                                print(f"      • Accuracy:  {m.get('accuracy', 'N/A'):.4f}")
-                                print(f"      • F1-Score:  {m.get('f1_score', 'N/A'):.4f}")
-                    else:
-                        print(f"   • Accuracy:  {test_metrics.get('accuracy', 'N/A'):.4f}")
-                        print(f"   • Precision: {test_metrics.get('precision', 'N/A'):.4f}")
-                        print(f"   • Recall:    {test_metrics.get('recall', 'N/A'):.4f}")
-                        print(f"   • F1-Score:  {test_metrics.get('f1_score', 'N/A'):.4f}")
-
-            # Inicializar encoder Transformer
-            self.encoder = TransformerEncoder(
-                model_name=bert_model,
-                max_length=max_length,
-                batch_size=16
-            )
+        # Soporte para modelos con par de clasificadores binarios o clasificador único (legacy)
+        if isinstance(payload, dict) and 'depression' in payload and 'anxiety' in payload:
+            self.clf_depression = payload['depression']
+            self.clf_anxiety = payload['anxiety']
+            self.classifier = None
         else:
-            if self.verbose:
-                print("⚠️  No se encontró archivo de metadata, usando configuración default")
-            self.thresholds = self._resolve_thresholds()
-            self.encoder = TransformerEncoder()
+            self.classifier = payload
+            self.clf_depression = None
+            self.clf_anxiety = None
 
-        # Cargar clasificador según tipo
-        if self.is_multi_label:
-            self.classifier = MultiLabelMentalHealthClassifier()
-        else:
-            self.classifier = DepressionClassifier()
-
-        self.classifier.load(str(model_file))
+        self.encoder = SentenceTransformer(BERT_MODEL)
 
         if self.verbose:
-            print("\n✅ Pipeline de predicción listo!")
+            print(f"Modelo cargado: {model_file.name}")
+            if self.metadata:
+                m = self.metadata.get('metrics', {})
+                print(f"  F1 weighted: {m.get('f1_weighted', 'N/A')}")
 
-    def _resolve_thresholds(self, metadata: Optional[Dict] = None) -> Dict[str, float]:
-        """Resuelve umbrales de decisión desde metadata/env o usa defaults conservadores."""
-        thresholds = dict(self.DEFAULT_THRESHOLDS)
+    def _build_features(self, texts: List[str], embeddings: np.ndarray) -> np.ndarray:
+        dep = np.array([[_keyword_score(t, DEPRESSION_KEYWORDS)] for t in texts])
+        anx = np.array([[_keyword_score(t, ANXIETY_KEYWORDS)] for t in texts])
+        max_dep = dep.max() or 1
+        max_anx = anx.max() or 1
+        return np.hstack([embeddings, dep / max_dep, anx / max_anx])
 
-        if metadata:
-            thresholds.update(metadata.get('decision_thresholds', {}))
+    # Umbrales independientes por condición
+    THRESHOLD_DEPRESSION = 0.35
+    THRESHOLD_ANXIETY = 0.35
 
-        env_depression = os.getenv('ML_DEPRESSION_THRESHOLD')
-        env_anxiety = os.getenv('ML_ANXIETY_THRESHOLD')
+    # Umbrales de decisión — al menos score=2 más señal semántica para activar
+    THRESHOLD_DEPRESSION = 0.38
+    THRESHOLD_ANXIETY = 0.38
 
-        if env_depression is not None:
-            thresholds['depression'] = float(env_depression)
-        if env_anxiety is not None:
-            thresholds['anxiety'] = float(env_anxiety)
+    def _score_to_prob(self, kw_score: float, semantic_boost: float) -> float:
+        """Convierte keyword score + señal semántica a probabilidad realista.
 
-        return {
-            label: min(max(float(value), 0.0), 1.0)
-            for label, value in thresholds.items()
-        }
-
-    def predict_text(
-        self,
-        text: str,
-        return_probabilities: bool = True,
-        clean_input: bool = True
-    ) -> Dict:
+        Puntos de referencia con la curva actual:
+          score=0  → ~8-12%   (sin keywords, solo contexto semántico leve)
+          score=2  → ~38-42%  (una frase de peso 2)
+          score=4  → ~62-68%  (frases moderadas)
+          score=6  → ~78-83%  (varias frases claras)
+          score=10 → ~88-92%  (texto severo, múltiples indicadores)
         """
-        Predice trastornos mentales para un texto dado.
+        import math
+        if kw_score == 0:
+            # Sin keywords: solo señal semántica muy atenuada
+            return max(0.05, min(0.18, 0.08 + 0.10 * semantic_boost))
+        # Sigmoide centrada en score=4, temperatura k=0.40
+        sigmoid = 1.0 / (1.0 + math.exp(-0.40 * (kw_score - 4.0)))
+        # Mezcla 75% keyword-sigmoide + 25% señal semántica
+        combined = 0.75 * sigmoid + 0.25 * semantic_boost
+        return max(0.20, min(0.92, combined))
 
-        Args:
-            text: Texto a analizar
-            return_probabilities: Incluir probabilidades en la respuesta
-            clean_input: Aplicar limpieza de texto antes de predecir
-
-        Returns:
-            Para modelo multi-etiqueta:
-            {
-                'text': str,
-                'predictions': {
-                    'depression': {'prediction': int, 'probability': float, 'label': str},
-                    'anxiety': {'prediction': int, 'probability': float, 'label': str}
-                },
-                'summary': {
-                    'has_depression': bool,
-                    'has_anxiety': bool,
-                    'conditions_detected': List[str]
-                }
-            }
-
-            Para modelo binario (retrocompatibilidad):
-            {
-                'text': str,
-                'prediction': int,
-                'label': str,
-                'probability': float,
-                'confidence': float
-            }
-        """
-        if not text or not text.strip():
-            raise ValueError("El texto no puede estar vacío")
-
-        # 1. Limpiar texto si es necesario
-        processed_text = clean_text(text) if clean_input else text
-
-        # 2. Generar embedding BERT
-        embedding = self.encoder.encode_texts(
-            [processed_text],
-            show_progress=False
-        )
-
-        # 3. Predecir según tipo de modelo
-        if self.is_multi_label:
-            return self._predict_multi_label(text, embedding, return_probabilities)
+    def _predict_proba_pair(self, X: np.ndarray, texts: List[str]):
+        """Retorna (prob_depression, prob_anxiety) combinando semántica y keywords."""
+        if self.clf_depression is not None:
+            sem_dep = float(self.clf_depression.predict_proba(X)[0][1])
+            sem_anx = float(self.clf_anxiety.predict_proba(X)[0][1])
         else:
-            return self._predict_binary(text, embedding, return_probabilities)
+            probas = self.classifier.predict_proba(X)[0]
+            sem_dep = float(probas[0])
+            sem_anx = float(probas[1])
 
-    def _predict_binary(
-        self,
-        text: str,
-        embedding: np.ndarray,
-        return_probabilities: bool
-    ) -> Dict:
-        """Predicción para modelo binario (solo depresión)."""
-        prediction = self.classifier.predict(embedding)[0]
-        probabilities = self.classifier.predict_proba(embedding)[0]
-        prob_depression = probabilities[1]
-        confidence = max(probabilities)
-        threshold = self.thresholds['depression']
-        has_depression = prob_depression >= threshold
+        kw_dep = _keyword_score(texts[0], DEPRESSION_KEYWORDS)
+        kw_anx = _keyword_score(texts[0], ANXIETY_KEYWORDS)
 
-        result = {
-            'text': text,
-            'prediction': int(has_depression),
-            'label': 'Depresión' if has_depression else 'Sin depresión',
-            'raw_prediction': int(prediction),
-            'threshold': float(threshold)
-        }
+        return self._score_to_prob(kw_dep, sem_dep), self._score_to_prob(kw_anx, sem_anx)
+        return prob_depression, prob_anxiety
 
-        if return_probabilities:
-            result['probability'] = float(prob_depression)
-            result['confidence'] = float(confidence)
+    def predict_text(self, text: str, return_probabilities: bool = True) -> Dict:
+        processed = clean_text(text)
+        embedding = self.encoder.encode([processed], convert_to_numpy=True)
+        embedding = normalize(embedding)
+        X = self._build_features([processed], embedding)
 
-        return result
+        prob_depression, prob_anxiety = self._predict_proba_pair(X, [processed])
 
-    def _predict_multi_label(
-        self,
-        text: str,
-        embedding: np.ndarray,
-        return_probabilities: bool
-    ) -> Dict:
-        """Predicción para modelo multi-etiqueta (depresión + ansiedad)."""
-        # Obtener predicciones y probabilidades
-        raw_predictions = self.classifier.predict(embedding)[0]  # [dep, anx]
-        probas = self.classifier.predict_proba(embedding)
+        # Detección independiente por umbral — ambas pueden ser True simultáneamente
+        has_depression = prob_depression >= self.THRESHOLD_DEPRESSION
+        has_anxiety = prob_anxiety >= self.THRESHOLD_ANXIETY
 
-        # Extraer probabilidades para cada etiqueta
-        prob_depression = probas[0][0, 1]  # P(depression=1)
-        prob_anxiety = probas[1][0, 1]      # P(anxiety=1)
-        depression_threshold = self.thresholds['depression']
-        anxiety_threshold = self.thresholds['anxiety']
-        has_depression = prob_depression >= depression_threshold
-        has_anxiety = prob_anxiety >= anxiety_threshold
-
-        # Construir resultado estructurado
         result = {
             'text': text,
             'predictions': {
                 'depression': {
                     'prediction': int(has_depression),
                     'label': 'Depresión' if has_depression else 'Sin depresión',
-                    'raw_prediction': int(raw_predictions[0]),
-                    'threshold': float(depression_threshold)
+                    'threshold': self.THRESHOLD_DEPRESSION,
                 },
                 'anxiety': {
                     'prediction': int(has_anxiety),
                     'label': 'Ansiedad' if has_anxiety else 'Sin ansiedad',
-                    'raw_prediction': int(raw_predictions[1]),
-                    'threshold': float(anxiety_threshold)
-                }
+                    'threshold': self.THRESHOLD_ANXIETY,
+                },
             },
             'summary': {
-                'has_depression': bool(has_depression),
-                'has_anxiety': bool(has_anxiety),
-                'conditions_detected': []
-            }
+                'has_depression': has_depression,
+                'has_anxiety': has_anxiety,
+                'conditions_detected': [c for c, v in [('depression', has_depression), ('anxiety', has_anxiety)] if v],
+            },
         }
 
-        # Agregar condiciones detectadas
-        if has_depression:
-            result['summary']['conditions_detected'].append('depression')
-        if has_anxiety:
-            result['summary']['conditions_detected'].append('anxiety')
-
-        # Agregar probabilidades si se solicitan
         if return_probabilities:
-            result['predictions']['depression']['probability'] = float(prob_depression)
-            result['predictions']['depression']['confidence'] = float(max(probas[0][0]))
-            result['predictions']['anxiety']['probability'] = float(prob_anxiety)
-            result['predictions']['anxiety']['confidence'] = float(max(probas[1][0]))
+            result['predictions']['depression']['probability'] = prob_depression
+            result['predictions']['depression']['confidence'] = prob_depression
+            result['predictions']['anxiety']['probability'] = prob_anxiety
+            result['predictions']['anxiety']['confidence'] = prob_anxiety
 
         return result
 
-    def predict_batch(
-        self,
-        texts: List[str],
-        return_probabilities: bool = True,
-        clean_input: bool = True,
-        show_progress: bool = True
-    ) -> List[Dict]:
-        """
-        Predice trastornos mentales para múltiples textos.
+    def predict_batch(self, texts: List[str], return_probabilities: bool = True) -> List[Dict]:
+        processed = [clean_text(t) for t in texts]
+        embeddings = self.encoder.encode(processed, batch_size=32, convert_to_numpy=True)
+        embeddings = normalize(embeddings)
+        X = self._build_features(processed, embeddings)
 
-        Args:
-            texts: Lista de textos a analizar
-            return_probabilities: Incluir probabilidades en las respuestas
-            clean_input: Aplicar limpieza de texto antes de predecir
-            show_progress: Mostrar barra de progreso
-
-        Returns:
-            Lista de diccionarios con predicciones
-        """
-        if not texts:
-            return []
-
-        # 1. Limpiar textos si es necesario
-        processed_texts = [clean_text(t) if clean_input else t for t in texts]
-
-        # 2. Generar embeddings BERT (batch processing eficiente)
-        embeddings = self.encoder.encode_texts(
-            processed_texts,
-            show_progress=show_progress
-        )
-
-        # 3. Predecir según tipo de modelo
-        if self.is_multi_label:
-            return self._predict_batch_multi_label(texts, embeddings, return_probabilities)
+        if self.clf_depression is not None:
+            all_probas_dep = self.clf_depression.predict_proba(X)
+            all_probas_anx = self.clf_anxiety.predict_proba(X)
+            all_probas = None
         else:
-            return self._predict_batch_binary(texts, embeddings, return_probabilities)
-
-    def _predict_batch_binary(
-        self,
-        texts: List[str],
-        embeddings: np.ndarray,
-        return_probabilities: bool
-    ) -> List[Dict]:
-        """Predicción batch para modelo binario."""
-        predictions = self.classifier.predict(embeddings)
-        probabilities = self.classifier.predict_proba(embeddings)
+            all_probas = self.classifier.predict_proba(X)
+            all_probas_dep = all_probas_anx = None
 
         results = []
         for i, text in enumerate(texts):
-            prediction = predictions[i]
-            probs = probabilities[i]
-            prob_depression = probs[1]
-            confidence = max(probs)
-            threshold = self.thresholds['depression']
-            has_depression = prob_depression >= threshold
+            if all_probas_dep is not None:
+                prob_dep_raw = float(all_probas_dep[i][1])
+                prob_anx_raw = float(all_probas_anx[i][1])
+            else:
+                prob_dep_raw = float(all_probas[i][0])
+                prob_anx_raw = float(all_probas[i][1])
+            kw_dep = _keyword_score(processed[i], DEPRESSION_KEYWORDS)
+            kw_anx = _keyword_score(processed[i], ANXIETY_KEYWORDS)
+            prob_depression = self._score_to_prob(kw_dep, prob_dep_raw)
+            prob_anxiety = self._score_to_prob(kw_anx, prob_anx_raw)
+            has_depression = prob_depression >= self.THRESHOLD_DEPRESSION
+            has_anxiety = prob_anxiety >= self.THRESHOLD_ANXIETY
 
-            result = {
-                'text': text,
-                'prediction': int(has_depression),
-                'label': 'Depresión' if has_depression else 'Sin depresión',
-                'raw_prediction': int(prediction),
-                'threshold': float(threshold)
-            }
-
-            if return_probabilities:
-                result['probability'] = float(prob_depression)
-                result['confidence'] = float(confidence)
-
-            results.append(result)
-
-        return results
-
-    def _predict_batch_multi_label(
-        self,
-        texts: List[str],
-        embeddings: np.ndarray,
-        return_probabilities: bool
-    ) -> List[Dict]:
-        """Predicción batch para modelo multi-etiqueta."""
-        predictions = self.classifier.predict(embeddings)  # (N, 2)
-        probas = self.classifier.predict_proba(embeddings)  # List of 2 arrays
-
-        results = []
-        for i, text in enumerate(texts):
-            pred = predictions[i]  # [dep, anx]
-            prob_depression = probas[0][i, 1]
-            prob_anxiety = probas[1][i, 1]
-            depression_threshold = self.thresholds['depression']
-            anxiety_threshold = self.thresholds['anxiety']
-            has_depression = prob_depression >= depression_threshold
-            has_anxiety = prob_anxiety >= anxiety_threshold
-
-            result = {
+            r = {
                 'text': text,
                 'predictions': {
                     'depression': {
                         'prediction': int(has_depression),
                         'label': 'Depresión' if has_depression else 'Sin depresión',
-                        'raw_prediction': int(pred[0]),
-                        'threshold': float(depression_threshold)
+                        'threshold': self.THRESHOLD_DEPRESSION,
                     },
                     'anxiety': {
                         'prediction': int(has_anxiety),
                         'label': 'Ansiedad' if has_anxiety else 'Sin ansiedad',
-                        'raw_prediction': int(pred[1]),
-                        'threshold': float(anxiety_threshold)
-                    }
+                        'threshold': self.THRESHOLD_ANXIETY,
+                    },
                 },
                 'summary': {
-                    'has_depression': bool(has_depression),
-                    'has_anxiety': bool(has_anxiety),
-                    'conditions_detected': []
-                }
+                    'has_depression': has_depression,
+                    'has_anxiety': has_anxiety,
+                    'conditions_detected': [c for c, v in [('depression', has_depression), ('anxiety', has_anxiety)] if v],
+                },
             }
-
-            if has_depression:
-                result['summary']['conditions_detected'].append('depression')
-            if has_anxiety:
-                result['summary']['conditions_detected'].append('anxiety')
-
             if return_probabilities:
-                result['predictions']['depression']['probability'] = float(prob_depression)
-                result['predictions']['depression']['confidence'] = float(max(probas[0][i]))
-                result['predictions']['anxiety']['probability'] = float(prob_anxiety)
-                result['predictions']['anxiety']['confidence'] = float(max(probas[1][i]))
-
-            results.append(result)
+                r['predictions']['depression']['probability'] = prob_depression
+                r['predictions']['depression']['confidence'] = prob_depression
+                r['predictions']['anxiety']['probability'] = prob_anxiety
+                r['predictions']['anxiety']['confidence'] = prob_anxiety
+            results.append(r)
 
         return results
 
     def get_model_info(self) -> Dict:
-        """
-        Obtiene información del modelo cargado.
-
-        Returns:
-            Diccionario con metadata del modelo
-        """
-        info = {
+        return {
             'model_name': self.model_name,
-            'model_type': 'multi_label' if self.is_multi_label else 'binary',
-            'labels': self.labels,
-            'metadata_available': self.metadata is not None
+            'model_type': self.metadata.get('model_type', 'logistic_regression_multilabel'),
+            'labels': self.metadata.get('labels', ['depression', 'anxiety', 'neutral']),
+            'bert_model': BERT_MODEL,
+            'created_at': self.metadata.get('created_at'),
+            'metrics': self.metadata.get('metrics'),
+            'metadata_available': bool(self.metadata),
         }
 
-        if self.metadata:
-            info['bert_model'] = self.metadata.get('bert_model')
-            info['created_at'] = self.metadata.get('created_at')
-            info['metrics'] = self.metadata.get('metrics')
-            info['xgboost_params'] = self.metadata.get('xgboost_params')
-
-        info['decision_thresholds'] = self.thresholds
-
-        return info
-
     def is_multilabel_model(self) -> bool:
-        """Retorna True si el modelo cargado es multi-etiqueta."""
-        return self.is_multi_label
-
-
-if __name__ == "__main__":
-    # Ejemplo de uso
-    print("=" * 80)
-    print("🧪 EJEMPLO DE USO - PREDICTION PIPELINE")
-    print("=" * 80)
-
-    # Inicializar pipeline
-    pipeline = PredictionPipeline()
-
-    # Mostrar info del modelo
-    print(f"\n📋 Modelo cargado:")
-    print(f"   Tipo: {'Multi-Etiqueta' if pipeline.is_multi_label else 'Binario'}")
-    print(f"   Etiquetas: {pipeline.labels}")
-
-    # Ejemplo de predicción
-    print("\n📝 Ejemplo de predicción:")
-    print("-" * 80)
-
-    text = "Me siento muy triste, ansioso y sin energía para hacer nada"
-    result = pipeline.predict_text(text)
-
-    print(f"\nTexto: {text}")
-
-    if pipeline.is_multi_label:
-        print(f"\nResultados Multi-Etiqueta:")
-        for condition, pred in result['predictions'].items():
-            print(f"   📌 {condition.upper()}:")
-            print(f"      • Predicción: {pred['label']}")
-            print(f"      • Probabilidad: {pred.get('probability', 'N/A'):.2%}")
-
-        print(f"\n   Condiciones detectadas: {result['summary']['conditions_detected']}")
-    else:
-        print(f"\nPredicción: {result['label']}")
-        print(f"Probabilidad: {result.get('probability', 'N/A'):.2%}")
-
-    print("\n" + "=" * 80)
-    print("✅ Pipeline funcionando correctamente!")
-    print("=" * 80)
+        return True
