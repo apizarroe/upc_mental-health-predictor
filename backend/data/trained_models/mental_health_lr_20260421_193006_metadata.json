@@ -1,6 +1,6 @@
 {
   "model_type": "logistic_regression_binary_pair",
-  "bert_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "bert_model": "PlanTL-GOB-ES/roberta-base-biomedical-es",
   "labels": [
     "depression",
     "anxiety",
@@ -11,7 +11,7 @@
     "anxiety": 1,
     "neutral": 2
   },
-  "created_at": "2026-04-20T05:24:30.544073+00:00",
+  "created_at": "2026-04-22T00:30:06.482191+00:00",
   "training_samples": 800,
   "test_samples": 200,
   "hyperparams": {
@@ -19,13 +19,13 @@
     "class_weight": "balanced",
     "solver": "lbfgs"
   },
-  "feature_dim": 386,
-  "embedding_dim": 384,
+  "feature_dim": 770,
+  "embedding_dim": 768,
   "metrics": {
     "f1_depression": 1.0,
-    "f1_anxiety": 1.0,
-    "f1_weighted": 1.0,
+    "f1_anxiety": 0.9879518072289156,
+    "f1_weighted": 0.9939759036144578,
     "accuracy_depression": 1.0,
-    "accuracy_anxiety": 1.0
+    "accuracy_anxiety": 0.99
   }
 }
