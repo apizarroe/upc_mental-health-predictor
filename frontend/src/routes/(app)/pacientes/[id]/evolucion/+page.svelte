@@ -74,8 +74,16 @@
 	const UMBRAL = 38;
 
 	const TESTS = {
-		depresion: ['test_depresion1', 'test_depresion2'],
-		ansiedad:  ['test_ansiedad1',  'test_ansiedad2']
+		ansiedad: [
+			{ nombre: 'Escala de Ansiedad Generalizada (GAD-7)',      url: '/docs/ansiedad/GAD-7.pdf' },
+			{ nombre: 'Inventario de Depresión de Beck (BDI)',         url: '/docs/depresion/BDI.pdf'  },
+			{ nombre: 'Escala de Hamilton para la Depresión (HAM-D)', url: '/docs/depresion/HAM-D.pdf' }
+		],
+		depresion: [
+			{ nombre: 'Cuestionario de Salud del Paciente (PHQ-9)',    url: '/docs/depresion/PHQ-9.pdf' },
+			{ nombre: 'Escala de Hamilton para la Ansiedad (HAM-A)',  url: '/docs/ansiedad/HAM-A.pdf'  },
+			{ nombre: 'Inventario de Ansiedad Estado-Rasgo (STAI)',   url: '/docs/ansiedad/STAI.pdf'   }
+		]
 	};
 
 	const recomendacion = $derived.by(() => {
@@ -227,11 +235,13 @@
 							</div>
 							<ul class="space-y-1">
 								{#each TESTS.depresion as test}
-									<li class="flex items-center gap-2 text-sm text-rose-800">
+									<li class="flex items-center gap-2 text-sm">
 										<svg class="h-4 w-4 flex-shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 										</svg>
-										{test}
+										<a href={test.url} target="_blank" class="text-rose-800 underline-offset-2 hover:underline">
+											{test.nombre}
+										</a>
 									</li>
 								{/each}
 							</ul>
@@ -245,11 +255,13 @@
 							</div>
 							<ul class="space-y-1">
 								{#each TESTS.ansiedad as test}
-									<li class="flex items-center gap-2 text-sm text-teal-800">
+									<li class="flex items-center gap-2 text-sm">
 										<svg class="h-4 w-4 flex-shrink-0 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 										</svg>
-										{test}
+										<a href={test.url} target="_blank" class="text-teal-800 underline-offset-2 hover:underline">
+											{test.nombre}
+										</a>
 									</li>
 								{/each}
 							</ul>
