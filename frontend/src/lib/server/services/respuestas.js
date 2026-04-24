@@ -328,3 +328,33 @@ export async function replaceObservacionesByRespuesta(idRespuesta, observaciones
 		return observacionesGuardadas;
 	});
 }
+
+/**
+ * Obtiene la evolución de probabilidades ML de un paciente en los últimos N días.
+ * Agrupa por día (zona horaria Lima GMT-5) y promedia si hay múltiples respuestas.
+ * @param {number} idPaciente
+ * @param {number} dias - ventana máxima (30 para cubrir los tres gráficos)
+ * @returns {Promise<Array<{fecha: string, prob_depresion: number, prob_ansiedad: number}>>}
+ */
+export async function getEvolucionByPaciente(idPaciente, dias = 30) {
+	const rows = await sql`
+		SELECT
+			DATE(pr.fecha_respuesta AT TIME ZONE 'America/Lima') AS fecha,
+			AVG((em.trastornos_detectados->'depression'->>'probability')::FLOAT) AS prob_depresion,
+			AVG((em.trastornos_detectados->'anxiety'->>'probability')::FLOAT)    AS prob_ansiedad
+		FROM paciente_respuesta pr
+		INNER JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+		WHERE pr.id_paciente        = ${idPaciente}
+		  AND pr.estado_procesamiento = 'procesado'
+		  AND pr.fecha_respuesta    >= (NOW() AT TIME ZONE 'America/Lima') - (${dias} || ' days')::INTERVAL
+		  AND em.trastornos_detectados IS NOT NULL
+		GROUP BY DATE(pr.fecha_respuesta AT TIME ZONE 'America/Lima')
+		ORDER BY fecha ASC
+	`;
+
+	return rows.map((r) => ({
+		fecha: r.fecha instanceof Date ? r.fecha.toISOString().split('T')[0] : String(r.fecha),
+		prob_depresion: Math.round((parseFloat(r.prob_depresion) || 0) * 100),
+		prob_ansiedad: Math.round((parseFloat(r.prob_ansiedad) || 0) * 100)
+	}));
+}

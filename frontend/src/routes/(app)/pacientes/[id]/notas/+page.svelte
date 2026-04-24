@@ -64,9 +64,20 @@
 						DNI: <span class="font-semibold">{data.paciente.dni}</span>
 					</p>
 				</div>
-				<div class="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-4 text-center">
-					<p class="text-white/80 text-sm">Total de Registros</p>
-					<p class="text-3xl font-bold text-white">{data.total}</p>
+				<div class="flex items-center gap-3">
+					<a
+						href="/pacientes/{idPaciente}/evolucion"
+						class="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-3 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/20"
+					>
+						<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+						</svg>
+						Ver Evolución
+					</a>
+					<div class="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-4 text-center">
+						<p class="text-white/80 text-sm">Total de Registros</p>
+						<p class="text-3xl font-bold text-white">{data.total}</p>
+					</div>
 				</div>
 			</div>
 		</div>
