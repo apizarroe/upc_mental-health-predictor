@@ -34,14 +34,14 @@ router = APIRouter()
     summary="Predecir depresión y ansiedad basándose en 4 respuestas del paciente",
     description="""
     Analiza 4 respuestas de un paciente sobre cómo se siente en diferentes aspectos de su vida
-    y predice la probabilidad de depresión Y ansiedad usando un modelo BERT + XGBoost multi-etiqueta.
+    y predice la probabilidad de depresión Y ansiedad.
 
     Las 4 respuestas se concatenan para mantener el contexto completo del paciente,
     lo que permite al modelo entender mejor el estado emocional general.
 
     **Modelo utilizado:**
-    - BERT: dccuchile/bert-base-spanish-wwm-cased
-    - Clasificador: XGBoost Multi-Output
+    - BERT: paraphrase-multilingual-MiniLM-L12-v2
+    - Clasificador: Logistic Regression + keyword scores ponderados
     - Tipo: Multi-etiqueta (predice depresión y ansiedad simultáneamente)
 
     **Input esperado:**
@@ -136,7 +136,6 @@ async def predict_mental_health(
         result = pipeline.predict_text(
             text=combined_text,
             return_probabilities=True,
-            clean_input=True
         )
 
         # 3. Detectar keywords por condición (usando singleton inyectado)
@@ -145,14 +144,13 @@ async def predict_mental_health(
         # 4. Obtener información del modelo
         model_info_raw = pipeline.get_model_info()
 
-        # 5. Construir respuesta según tipo de modelo
-        if pipeline.is_multi_label:
+        # 5. Construir respuesta (siempre multi-label en el nuevo pipeline)
+        if pipeline.is_multilabel_model():
             response = build_multilabel_response(
                 result, request, combined_text,
                 keywords_by_condition, model_info_raw
             )
         else:
-            # Retrocompatibilidad con modelo binario
             response = build_binary_response(
                 result, request, combined_text,
                 keywords_by_condition, model_info_raw
@@ -194,10 +192,11 @@ async def predict_mental_health(
 )
 async def predict_depression(
     request: MentalHealthPredictionRequest,
-    pipeline: PredictionPipeline = Depends(get_prediction_pipeline)
+    pipeline: PredictionPipeline = Depends(get_prediction_pipeline),
+    preprocessor: TextPreprocessor = Depends(get_text_preprocessor)
 ) -> MentalHealthPredictionResponse:
     """Endpoint legacy que redirige a predict_mental_health."""
-    return await predict_mental_health(request, pipeline)
+    return await predict_mental_health(request, pipeline, preprocessor)
 
 
 def build_multilabel_response(
@@ -325,45 +324,20 @@ def build_binary_response(
 def format_model_metrics(model_info_raw: Dict) -> ModelMetrics:
     """Formatea las métricas del modelo para la respuesta."""
     metrics = model_info_raw.get("metrics", {})
-    test_metrics = metrics.get("test", {})
-
-    if not test_metrics:
+    if not metrics:
         return None
 
-    # Verificar si es multi-label o binario
-    if "depression" in test_metrics:
-        # Multi-label
-        depression_metrics = test_metrics.get("depression", {})
-        anxiety_metrics = test_metrics.get("anxiety", {})
-        overall_metrics = test_metrics.get("overall", {})
-
-        return ModelMetrics(
-            depression=LabelMetrics(
-                accuracy=depression_metrics.get("accuracy"),
-                precision=depression_metrics.get("precision"),
-                recall=depression_metrics.get("recall"),
-                f1_score=depression_metrics.get("f1_score")
-            ) if depression_metrics else None,
-            anxiety=LabelMetrics(
-                accuracy=anxiety_metrics.get("accuracy"),
-                precision=anxiety_metrics.get("precision"),
-                recall=anxiety_metrics.get("recall"),
-                f1_score=anxiety_metrics.get("f1_score")
-            ) if anxiety_metrics else None,
-            overall=overall_metrics if overall_metrics else None
-        )
-    else:
-        # Binario
-        return ModelMetrics(
-            depression=LabelMetrics(
-                accuracy=test_metrics.get("accuracy"),
-                precision=test_metrics.get("precision"),
-                recall=test_metrics.get("recall"),
-                f1_score=test_metrics.get("f1_score")
-            ),
-            anxiety=None,
-            overall=None
-        )
+    # Nuevo formato: métricas flat con f1_weighted, accuracy, etc.
+    return ModelMetrics(
+        depression=LabelMetrics(
+            accuracy=metrics.get("accuracy"),
+            precision=metrics.get("precision"),
+            recall=metrics.get("recall"),
+            f1_score=metrics.get("f1_weighted")
+        ),
+        anxiety=None,
+        overall={"f1_weighted": metrics.get("f1_weighted")}
+    )
 
 
 def generate_multilabel_interpretation(

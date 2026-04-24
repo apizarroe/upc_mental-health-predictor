@@ -9,39 +9,15 @@ import numpy as np
 from typing import List, Dict, Tuple, Union
 
 from .text_processing import clean_text as _clean_text
+from .keywords import DEPRESSION_KEYWORDS, ANXIETY_KEYWORDS
 
 
 class TextPreprocessor:
     """Preprocesa conversaciones de chat para análisis de trastornos mentales."""
 
     def __init__(self):
-        """Inicializa el preprocesador con keywords para cada trastorno."""
-        # Keywords específicas para depresión
-        self.depression_keywords = [
-            'triste', 'deprimido', 'depresión', 'desesperanza', 'desesperado',
-            'vacío', 'soledad', 'solo', 'aislado', 'llorar', 'lloro',
-            'culpa', 'inútil', 'fracaso', 'muerte', 'morir', 'suicidio',
-            'cansado', 'agotado', 'fatiga', 'poca energía', 'falta energía',
-            'motivación'
-            # 'sad', 'depressed', 'depression', 'hopeless', 'desperate',
-            # 'empty', 'lonely', 'alone', 'isolated', 'cry', 'crying',
-            # 'guilt', 'worthless', 'failure', 'death', 'die',
-            # 'tired', 'exhausted', 'fatigue', 'energy', 'motivation'
-        ]
-
-        # Keywords específicas para ansiedad
-        self.anxiety_keywords = [
-            'ansiedad', 'ansioso', 'nervioso', 'nerviosismo', 'pánico',
-            'preocupado', 'preocupación', 'miedo', 'temor', 'fobia',
-            'tensión', 'tenso', 'inquieto', 'agitado', 'estrés', 'estresado',
-            'palpitaciones', 'sudor', 'temblor', 'respiración', 'abrumado',
-            'insomnio', 'lograr dormir'
-            # 'anxiety', 'anxious', 'nervous', 'nervousness', 'panic',
-            # 'worried', 'worry', 'fear', 'phobia',
-            # 'tension', 'tense', 'restless', 'agitated', 'stress', 'stressed',
-            # 'palpitations', 'sweat', 'trembling', 'breathing', 'overwhelmed',
-            # 'insomnia', 'sleep'
-        ]
+        self.depression_keywords = DEPRESSION_KEYWORDS
+        self.anxiety_keywords = ANXIETY_KEYWORDS
 
     def load_parquet(self, file_path: str) -> pd.DataFrame:
         """
@@ -90,23 +66,23 @@ class TextPreprocessor:
     def _detect_condition_indicators(
         self,
         text: str,
-        keywords: List[str],
+        keywords: Dict[str, int],
         threshold: int = 2
     ) -> int:
         """
-        Detecta indicadores de una condición en el texto usando keywords.
+        Detecta indicadores de una condición usando score ponderado de keywords.
 
         Args:
             text: Texto a analizar
-            keywords: Lista de keywords a buscar
-            threshold: Número mínimo de keywords para considerar positivo
+            keywords: Dict {keyword: peso} donde frases=2, palabras=1
+            threshold: Score mínimo ponderado para considerar positivo
 
         Returns:
-            1 si detecta indicadores (>= threshold keywords), 0 si no
+            1 si score >= threshold, 0 si no
         """
         text_lower = text.lower()
-        keyword_count = sum(1 for keyword in keywords if keyword in text_lower)
-        return 1 if keyword_count >= threshold else 0
+        score = sum(weight for kw, weight in keywords.items() if kw in text_lower)
+        return 1 if score >= threshold else 0
 
     def detect_depression_indicators(self, text: str) -> int:
         """
