@@ -15,22 +15,27 @@ from sklearn.preprocessing import normalize
 from .text_processing import clean_text
 from .transformer_encoder import TransformerEncoder
 from .keywords import DEPRESSION_KEYWORDS, ANXIETY_KEYWORDS
+from .preprocessor import TextPreprocessor
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 BERT_MODEL = 'PlanTL-GOB-ES/roberta-base-biomedical-es'
 
 LABEL_MAP = {0: 'depression', 1: 'anxiety', 2: 'neutral'}
+PREPROCESSOR = TextPreprocessor()
 
 
 def _keyword_score(text: str, keywords: dict) -> float:
-    t = text.lower()
-    return sum(w for kw, w in keywords.items() if kw in t)
+    return PREPROCESSOR.get_weighted_keyword_score(text, keywords)
 
 
 def _matched_keywords(text: str, keywords: dict) -> List[str]:
-    t = text.lower()
-    return [kw for kw in keywords if kw in t]
+    matches = PREPROCESSOR.get_matched_keywords(text)
+    if keywords is DEPRESSION_KEYWORDS:
+        return matches['depression']
+    if keywords is ANXIETY_KEYWORDS:
+        return matches['anxiety']
+    return []
 
 
 class PredictionPipeline:

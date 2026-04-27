@@ -6,6 +6,7 @@ Soporta detección multi-etiqueta (depresión y ansiedad).
 
 import pandas as pd
 import numpy as np
+import re
 from typing import List, Dict, Tuple, Union
 
 from .text_processing import clean_text as _clean_text
@@ -14,6 +15,10 @@ from .keywords import DEPRESSION_KEYWORDS, ANXIETY_KEYWORDS
 
 class TextPreprocessor:
     """Preprocesa conversaciones de chat para análisis de trastornos mentales."""
+
+    NEGATION_CUES = {
+        'no', 'nunca', 'jamas', 'jamás', 'sin', 'ni', 'tampoco'
+    }
 
     def __init__(self):
         self.depression_keywords = DEPRESSION_KEYWORDS
@@ -63,6 +68,55 @@ class TextPreprocessor:
         """
         return _clean_text(text)
 
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokeniza texto preservando palabras acentuadas para análisis de negación."""
+        return re.findall(r"\b[\wáéíóúüñ]+\b", text.lower())
+
+    def _find_keyword_matches(
+        self,
+        text: str,
+        keywords: Dict[str, int]
+    ) -> Dict[str, List[str]]:
+        """
+        Retorna coincidencias afirmadas y negadas.
+
+        Una keyword se marca como negada si aparece precedida en una ventana corta
+        por palabras como "no", "sin", "nunca", etc.
+        """
+        tokens = self._tokenize(text)
+        affirmed = []
+        negated = []
+
+        for keyword in keywords:
+            keyword_tokens = self._tokenize(keyword)
+            if not keyword_tokens:
+                continue
+
+            for idx in range(len(tokens) - len(keyword_tokens) + 1):
+                if tokens[idx:idx + len(keyword_tokens)] != keyword_tokens:
+                    continue
+
+                lookback = tokens[max(0, idx - 3):idx]
+                is_negated = any(token in self.NEGATION_CUES for token in lookback)
+
+                if is_negated:
+                    if keyword not in negated:
+                        negated.append(keyword)
+                else:
+                    if keyword not in affirmed:
+                        affirmed.append(keyword)
+                break
+
+        return {
+            'affirmed': affirmed,
+            'negated': negated
+        }
+
+    def get_weighted_keyword_score(self, text: str, keywords: Dict[str, int]) -> float:
+        """Suma pesos solo de keywords afirmadas, ignorando las negadas."""
+        matches = self._find_keyword_matches(text, keywords)
+        return float(sum(keywords[kw] for kw in matches['affirmed']))
+
     def _detect_condition_indicators(
         self,
         text: str,
@@ -80,8 +134,7 @@ class TextPreprocessor:
         Returns:
             1 si score >= threshold, 0 si no
         """
-        text_lower = text.lower()
-        score = sum(weight for kw, weight in keywords.items() if kw in text_lower)
+        score = self.get_weighted_keyword_score(text, keywords)
         return 1 if score >= threshold else 0
 
     def detect_depression_indicators(self, text: str) -> int:
@@ -124,7 +177,7 @@ class TextPreprocessor:
 
     def get_matched_keywords(self, text: str) -> Dict[str, List[str]]:
         """
-        Retorna las keywords encontradas para cada trastorno.
+        Retorna solo las keywords afirmadas encontradas para cada trastorno.
 
         Args:
             text: Texto a analizar
@@ -132,14 +185,26 @@ class TextPreprocessor:
         Returns:
             Diccionario con keywords encontradas por trastorno
         """
-        text_lower = text.lower()
+        depression_matches = self._find_keyword_matches(
+            text, self.depression_keywords
+        )['affirmed']
+        anxiety_matches = self._find_keyword_matches(
+            text, self.anxiety_keywords
+        )['affirmed']
 
-        depression_matches = [
-            kw for kw in self.depression_keywords if kw in text_lower
-        ]
-        anxiety_matches = [
-            kw for kw in self.anxiety_keywords if kw in text_lower
-        ]
+        return {
+            'depression': depression_matches,
+            'anxiety': anxiety_matches
+        }
+
+    def get_negated_keywords(self, text: str) -> Dict[str, List[str]]:
+        """Retorna las keywords que aparecen explícitamente negadas."""
+        depression_matches = self._find_keyword_matches(
+            text, self.depression_keywords
+        )['negated']
+        anxiety_matches = self._find_keyword_matches(
+            text, self.anxiety_keywords
+        )['negated']
 
         return {
             'depression': depression_matches,
