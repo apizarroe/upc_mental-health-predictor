@@ -43,9 +43,12 @@
 	<div class="mb-8">
 		<button
 			onclick={() => goto('/especialistas')}
-			class="text-white hover:text-gray-200 mb-4 inline-flex items-center"
+			class="text-white/80 hover:text-white mb-4 flex items-center gap-2"
 		>
-			← Volver a la lista
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+			</svg>
+			Volver a Especialistas
 		</button>
 		<h1 class="text-3xl font-bold text-white">Nuevo Especialista</h1>
 		<p class="mt-2 text-white">Registra un nuevo especialista en el sistema</p>

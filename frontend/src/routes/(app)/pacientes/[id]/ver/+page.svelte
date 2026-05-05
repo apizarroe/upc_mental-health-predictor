@@ -36,9 +36,12 @@
 	<div class="mb-8">
 		<button
 			onclick={() => goto('/pacientes')}
-			class="text-white hover:text-white/80 mb-4 inline-flex items-center"
+			class="text-white/80 hover:text-white mb-4 flex items-center gap-2"
 		>
-			← Volver a la lista
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+			</svg>
+			Volver a Pacientes
 		</button>
 	</div>
 
@@ -160,6 +163,16 @@
 					<div>
 						<label class="text-sm font-medium text-gray-500">Fecha de Registro</label>
 						<p class="mt-1 text-gray-900">{formatDate(paciente.fecha_registro)}</p>
+					</div>
+					<div>
+						<label class="text-sm font-medium text-gray-500">Estado Clínico</label>
+						<p class="mt-1 text-gray-900">{paciente.estado_clinico ?? '—'}</p>
+					</div>
+					<div>
+						<label class="text-sm font-medium text-gray-500">Fecha de Última Consulta</label>
+						<p class="mt-1 text-gray-900">
+							{paciente.fecha_ultima_consulta ? formatDate(paciente.fecha_ultima_consulta) : '—'}
+						</p>
 					</div>
 				</div>
 			</div>

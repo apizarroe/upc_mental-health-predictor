@@ -241,15 +241,27 @@
 								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Sexo
 								</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-									Teléfono
-								</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-									Correo
-								</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-									Estado
-								</th>
+								{#if userRole === 'admin'}
+									<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+										Teléfono
+									</th>
+									<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+										Correo
+									</th>
+								{/if}
+								{#if userRole === 'admin'}
+									<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+										Estado
+									</th>
+								{/if}
+								{#if userRole !== 'admin'}
+									<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+										Estado Clínico
+									</th>
+									<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+										Última Consulta
+									</th>
+								{/if}
 								<th class="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Notas
 								</th>
@@ -275,23 +287,35 @@
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
 										{paciente.sexo === 'M' ? 'Masculino' : 'Femenino'}
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
-										{paciente.telefono}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
-										{paciente.correo}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap">
-										{#if paciente.flg_activo}
-											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-												Activo
-											</span>
-										{:else}
-											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-												Inactivo
-											</span>
-										{/if}
-									</td>
+									{#if userRole === 'admin'}
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+											{paciente.telefono}
+										</td>
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+											{paciente.correo}
+										</td>
+									{/if}
+									{#if userRole === 'admin'}
+										<td class="px-6 py-4 whitespace-nowrap">
+											{#if paciente.flg_activo}
+												<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+													Activo
+												</span>
+											{:else}
+												<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+													Inactivo
+												</span>
+											{/if}
+										</td>
+									{/if}
+									{#if userRole !== 'admin'}
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+											{paciente.estado_clinico ?? '—'}
+										</td>
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
+											{paciente.fecha_ultima_consulta ? new Date(paciente.fecha_ultima_consulta).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+										</td>
+									{/if}
 									<td class="px-6 py-4 whitespace-nowrap text-center">
 										{#if tieneHistoriaClinica(paciente.id_paciente)}
 											<button

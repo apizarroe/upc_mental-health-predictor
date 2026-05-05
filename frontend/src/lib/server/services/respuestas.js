@@ -273,12 +273,17 @@ export async function getRespuestaDetalle(idRespuesta) {
 export async function getObservacionesByRespuesta(idRespuesta) {
 	const observaciones = await sql`
 		SELECT
-			id_observacion,
-			id_respuesta,
-			descripcion
-		FROM observacion
-		WHERE id_respuesta = ${idRespuesta}
-		ORDER BY id_observacion ASC
+			o.id_observacion,
+			o.id_respuesta,
+			o.descripcion,
+			o.fecha_observacion,
+			o.id_especialista,
+			e.nombres   AS especialista_nombres,
+			e.apellidos AS especialista_apellidos
+		FROM observacion o
+		LEFT JOIN especialista e ON o.id_especialista = e.id_especialista
+		WHERE o.id_respuesta = ${idRespuesta}
+		ORDER BY o.id_observacion ASC
 	`;
 
 	return observaciones;
@@ -290,39 +295,73 @@ export async function getObservacionesByRespuesta(idRespuesta) {
  * @param {string[]} observaciones - Descripciones de observaciones
  * @returns {Promise<Array>} - Observaciones guardadas
  */
-export async function replaceObservacionesByRespuesta(idRespuesta, observaciones) {
-	const observacionesLimpias = observaciones
-		.map((observacion) => observacion.trim())
-		.filter(Boolean);
+export async function replaceObservacionesByRespuesta(idRespuesta, observaciones, idEspecialista = null) {
+	// observaciones: [{ id_observacion: number|null, descripcion: string }]
+	// Solo contiene las observaciones del especialista actual (propias + nuevas)
+	const limpias = observaciones
+		.map((o) => ({ id_observacion: o.id_observacion ?? null, descripcion: o.descripcion.trim() }))
+		.filter((o) => o.descripcion);
 
 	return sql.begin(async (tx) => {
-		await tx`
-			DELETE FROM observacion
-			WHERE id_respuesta = ${idRespuesta}
-		`;
+		const idsConservar = limpias.filter((o) => o.id_observacion).map((o) => o.id_observacion);
 
-		if (observacionesLimpias.length === 0) {
-			return [];
+		// Eliminar solo las observaciones PROPIAS que ya no están en la lista
+		if (idsConservar.length > 0) {
+			await tx`
+				DELETE FROM observacion
+				WHERE id_respuesta = ${idRespuesta}
+				  AND id_especialista = ${idEspecialista}
+				  AND NOT (id_observacion = ANY(${idsConservar}))
+			`;
+		} else {
+			await tx`
+				DELETE FROM observacion
+				WHERE id_respuesta = ${idRespuesta}
+				  AND id_especialista = ${idEspecialista}
+			`;
 		}
+
+		const nuevas = limpias.filter((o) => !o.id_observacion);
+
+		if (nuevas.length > 0) {
+			// Validar que no se superen 3 observaciones en total
+			const [{ count }] = await tx`
+				SELECT COUNT(*) AS count FROM observacion WHERE id_respuesta = ${idRespuesta}
+			`;
+			if (parseInt(count) + nuevas.length > 3) {
+				throw new Error('LIMITE_OBSERVACIONES');
+			}
+		}
+
+		if (limpias.length === 0) return [];
 
 		const observacionesGuardadas = [];
 
-		for (const descripcion of observacionesLimpias) {
-			const [observacion] = await tx`
-				INSERT INTO observacion (
-					id_respuesta,
-					descripcion
-				) VALUES (
-					${idRespuesta},
-					${descripcion}
-				)
-				RETURNING
-					id_observacion,
-					id_respuesta,
-					descripcion
-			`;
-
-			observacionesGuardadas.push(observacion);
+		for (const obs of limpias) {
+			if (obs.id_observacion) {
+				// Observación propia existente: solo actualizar descripcion
+				const [updated] = await tx`
+					UPDATE observacion
+					SET descripcion       = ${obs.descripcion},
+					    fecha_observacion = CASE
+					        WHEN descripcion IS DISTINCT FROM ${obs.descripcion}
+					        THEN NOW() AT TIME ZONE 'America/Lima'
+					        ELSE fecha_observacion
+					    END
+					WHERE id_observacion = ${obs.id_observacion}
+					  AND id_especialista = ${idEspecialista}
+					RETURNING id_observacion, id_respuesta, descripcion, id_especialista, fecha_observacion
+				`;
+				if (updated) observacionesGuardadas.push(updated);
+			} else {
+				// Nueva observación
+				const [inserted] = await tx`
+					INSERT INTO observacion (id_respuesta, descripcion, id_especialista, fecha_observacion)
+					VALUES (${idRespuesta}, ${obs.descripcion}, ${idEspecialista}, NOW() AT TIME ZONE 'America/Lima')
+					RETURNING id_observacion, id_respuesta, descripcion, id_especialista, fecha_observacion
+				`;
+				observacionesGuardadas.push(inserted);
+			}
 		}
 
 		return observacionesGuardadas;
