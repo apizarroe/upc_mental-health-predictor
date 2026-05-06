@@ -25,6 +25,7 @@ export async function load({ params, parent }) {
 		paciente,
 		respuesta,
 		observaciones,
+		user,
 		currentUserId: user?.id_especialista ?? null
 	};
 }

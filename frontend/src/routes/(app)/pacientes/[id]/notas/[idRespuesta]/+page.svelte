@@ -8,6 +8,9 @@
 	const idPaciente = $page.params.id;
 	const idRespuesta = $page.params.idRespuesta;
 	const currentUserId = data.currentUserId;
+	const puedeValidarDiagnostico = $derived(
+		data.respuesta.estado_procesamiento === 'procesado' && Boolean(data.respuesta.id_evaluacion)
+	);
 
 	let isReprocesando = $state(false);
 	let mensajeReprocesar = $state(null);
@@ -17,7 +20,9 @@
 	let guardandoObservaciones = $state(false);
 	let mensajeObservaciones = $state(null);
 
-	const tieneObservacionesPropias = $derived(observaciones.some(o => o.id_especialista === currentUserId));
+	const tieneObservacionesPropias = $derived(
+		observaciones.some((o) => o.id_especialista === currentUserId)
+	);
 	const puedeEditarObservaciones = $derived(tieneObservacionesPropias || observaciones.length < 3);
 
 	function formatearFecha(fecha) {
@@ -46,9 +51,10 @@
 	function iniciarEdicionObservaciones() {
 		// Solo las propias son editables; las ajenas se muestran aparte como solo lectura
 		const propias = observaciones.filter((o) => o.id_especialista === currentUserId);
-		observacionesEditables = propias.length > 0
-			? propias.map((o) => ({ id_observacion: o.id_observacion, descripcion: o.descripcion }))
-			: [];
+		observacionesEditables =
+			propias.length > 0
+				? propias.map((o) => ({ id_observacion: o.id_observacion, descripcion: o.descripcion }))
+				: [];
 		editandoObservaciones = true;
 		mensajeObservaciones = null;
 	}
@@ -202,34 +208,57 @@
 					</p>
 				</div>
 
-				<!-- Botón Reprocesar -->
-				<button
-					onclick={reprocesarRespuesta}
-					disabled={isReprocesando}
-					class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-				>
-					{#if isReprocesando}
-						<svg class="h-5 w-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						Reprocesando...
-					{:else}
-						<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						Reprocesar
+				<div class="flex flex-wrap items-center justify-end gap-3">
+					{#if puedeValidarDiagnostico}
+						<a
+							href={resolve(`/pacientes/${idPaciente}/notas/${idRespuesta}/validacion`)}
+							class="flex items-center gap-2 rounded-lg border border-emerald-300/40 bg-emerald-500/15 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-emerald-500/25"
+						>
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Validar diagnóstico
+						</a>
 					{/if}
-				</button>
+
+					<button
+						onclick={reprocesarRespuesta}
+						disabled={isReprocesando}
+						class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{#if isReprocesando}
+							<svg
+								class="h-5 w-5 animate-spin"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+								/>
+							</svg>
+							Reprocesando...
+						{:else}
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+								/>
+							</svg>
+							Reprocesar
+						{/if}
+					</button>
+				</div>
 			</div>
 		</div>
 
@@ -386,13 +415,15 @@
 						{#if editandoObservaciones}
 							<div class="space-y-4">
 								<!-- Observaciones de otros especialistas (solo lectura) -->
-								{#each observaciones.filter(o => o.id_especialista !== currentUserId) as obs, index}
+								{#each observaciones.filter((o) => o.id_especialista !== currentUserId) as obs (obs.id_observacion ?? obs.descripcion)}
 									<div class="rounded-lg border border-neutral-100 bg-gray-50 p-4 opacity-70">
 										<div class="mb-1 flex items-center justify-between">
 											<span class="text-xs font-medium text-neutral-500">Solo lectura</span>
 											<div class="text-right text-xs text-neutral-400">
 												{#if obs.especialista_nombres}
-													<span class="block">{obs.especialista_nombres} {obs.especialista_apellidos}</span>
+													<span class="block"
+														>{obs.especialista_nombres} {obs.especialista_apellidos}</span
+													>
 												{/if}
 											</div>
 										</div>
@@ -404,7 +435,10 @@
 								{#each observacionesEditables as obs, index (`editable-${index}`)}
 									<div>
 										<div class="mb-1 flex items-center justify-between">
-											<label class="text-sm font-semibold text-neutral-700" for={`observacion-${index}`}>
+											<label
+												class="text-sm font-semibold text-neutral-700"
+												for={`observacion-${index}`}
+											>
 												Observación
 											</label>
 											<button
@@ -433,7 +467,12 @@
 										class="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-200"
 									>
 										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 4v16m8-8H4"
+											/>
 										</svg>
 										Agregar observación
 									</button>
@@ -449,13 +488,28 @@
 										class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
 									>
 										{#if guardandoObservaciones}
-											<svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+											<svg
+												class="h-4 w-4 animate-spin"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+												/>
 											</svg>
 											Guardando...
 										{:else}
 											<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M5 13l4 4L19 7"
+												/>
 											</svg>
 											Guardar cambios
 										{/if}
@@ -473,11 +527,18 @@
 											<div class="flex items-start gap-4">
 												<div class="text-right text-xs text-neutral-500">
 													{#if observacion.especialista_nombres}
-														<span class="block">{observacion.especialista_nombres} {observacion.especialista_apellidos}</span>
+														<span class="block"
+															>{observacion.especialista_nombres}
+															{observacion.especialista_apellidos}</span
+														>
 													{/if}
 													{#if observacion.fecha_observacion}
 														<span class="block">
-															{new Date(observacion.fecha_observacion).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })}
+															{new Date(observacion.fecha_observacion).toLocaleString('es-PE', {
+																dateStyle: 'medium',
+																timeStyle: 'short',
+																timeZone: 'America/Lima'
+															})}
 														</span>
 													{/if}
 												</div>

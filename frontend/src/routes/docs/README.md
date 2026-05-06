@@ -37,6 +37,9 @@ Endpoints del servidor SvelteKit. Autenticación por cookies HttpOnly (30 min).
 | | POST | `/api/historias/[id]/cerrar` | Cerrar historia |
 | | GET | `/api/historias/paciente/[id]` | Historias de un paciente |
 | Evaluaciones | POST | `/api/respuestas/[id]/reprocesar` | Reprocesar evaluación ML (síncrono) |
+| | POST | `/api/respuestas/[id]/validacion` | Guardar validación clínica del diagnóstico |
+| ML | GET | `/api/ml/reentrenar` | Consultar estado del reentrenamiento manual |
+| | POST | `/api/ml/reentrenar` | Gatillar reentrenamiento manual (solo admin) |
 
 ---
 
@@ -304,6 +307,75 @@ Sin body. Proceso **síncrono**: elimina la evaluación anterior, envía al ML A
 ```
 
 **Errores**: 401 sesión expirada · 403 rol insuficiente · 404 respuesta no encontrada · 500 error ML o BD
+
+### POST `/api/respuestas/[id]/validacion`
+
+**Requiere**: sesión admin o especialista
+
+```json
+{
+  "decision": "modificar",
+  "diagnosticoEspecialista": {
+    "depression": true,
+    "anxiety": false
+  },
+  "nivelConfianza": 90,
+  "observaciones": "Los hallazgos clínicos son más consistentes con depresión.",
+  "recomendacionPaciente": "Programar seguimiento semanal.",
+  "requiereSeguimiento": true
+}
+```
+
+**Notas**:
+- `decision`: `aceptar`, `rechazar` o `modificar`
+- Si `decision = aceptar`, el backend fuerza el diagnóstico del especialista a coincidir con el modelo
+- Si `decision = rechazar` o `modificar`, la validación queda marcada para el próximo reentrenamiento manual
+
+**Response 200**
+```json
+{
+  "success": true,
+  "message": "Validación guardada correctamente",
+  "validacion": {
+    "id_validacion": 7,
+    "id_evaluacion": 15,
+    "id_especialista": 2,
+    "precision_global": "media",
+    "util_para_entrenamiento": true
+  }
+}
+```
+
+**Errores**: 400 body inválido · 401 sesión expirada · 403 rol insuficiente · 409 sin evaluación ML disponible · 422 sin cambios frente al modelo · 500 error BD
+
+## ML
+
+### GET `/api/ml/reentrenar`
+
+**Requiere**: sesión admin
+
+Devuelve el estado actual del reentrenamiento manual, incluyendo si hay uno en curso, cuántas validaciones quedan pendientes y el log reciente.
+
+### POST `/api/ml/reentrenar`
+
+**Requiere**: sesión admin
+
+Sin body. Toma todas las validaciones pendientes marcadas para entrenamiento, exporta el dataset de feedback del especialista y ejecuta `backend/run_training.sh` en segundo plano.
+
+**Response 200**
+```json
+{
+  "success": true,
+  "message": "Reentrenamiento iniciado correctamente.",
+  "queuedValidations": 3,
+  "status": {
+    "isRunning": true,
+    "pendingCount": 3
+  }
+}
+```
+
+**Errores**: 401 sesión expirada · 403 solo admin · 409 ya existe un entrenamiento en curso · 500 no se pudo preparar o iniciar el entrenamiento
 
 ---
 
