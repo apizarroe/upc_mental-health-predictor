@@ -14,6 +14,14 @@ export async function POST({ params, request, cookies }) {
 
 		const sessionData = JSON.parse(sessionCookie);
 
+		// Solo admin puede ejecutar cierre definitivo
+		if (body.situacion_historia === 'Cierre Definitivo' && sessionData.rol !== 'admin') {
+			return json(
+				{ success: false, error: 'No autorizado. Solo un administrador puede realizar el cierre definitivo.' },
+				{ status: 403 }
+			);
+		}
+
 		// Validar datos
 		const validatedData = cerrarHistoriaSchema.parse(body);
 

@@ -37,26 +37,32 @@ export async function POST({ params, request, cookies }) {
 		const body = await request.json();
 		const observaciones = Array.isArray(body?.observaciones) ? body.observaciones : null;
 
-		if (!observaciones || observaciones.some((item) => typeof item !== 'string')) {
+		if (
+			!observaciones ||
+			observaciones.some(
+				(item) => typeof item !== 'object' || typeof item.descripcion !== 'string'
+			)
+		) {
 			return json({ error: 'Formato de observaciones inválido' }, { status: 400 });
 		}
 
-		const observacionesGuardadas = await respuestasService.replaceObservacionesByRespuesta(
-			idRespuesta,
-			observaciones
-		);
+		const idEspecialista = sessionData.id_especialista ? parseInt(sessionData.id_especialista) : null;
+
+		await respuestasService.replaceObservacionesByRespuesta(idRespuesta, observaciones, idEspecialista);
+
+		const observacionesGuardadas = await respuestasService.getObservacionesByRespuesta(idRespuesta);
 
 		return json({
 			success: true,
 			observaciones: observacionesGuardadas
 		});
 	} catch (error) {
+		if (error.message === 'LIMITE_OBSERVACIONES') {
+			return json({ error: 'No se pueden registrar más de 3 observaciones por nota.' }, { status: 422 });
+		}
 		console.error('❌ Error al guardar observaciones:', error);
 		return json(
-			{
-				error: 'Error interno al guardar observaciones',
-				details: error.message
-			},
+			{ error: 'Error interno al guardar observaciones', details: error.message },
 			{ status: 500 }
 		);
 	}

@@ -27,6 +27,8 @@ Información de los pacientes del centro de atención psicológica.
 | bloqueado_hasta     | TIMESTAMP    |               | Fecha hasta la cual está bloqueada la cuenta |
 | fecha_registro      | TIMESTAMP    | DEFAULT NOW   | Fecha de registro en el sistema              |
 | flg_activo          | BOOLEAN      | DEFAULT true  | Estado activo/inactivo del paciente          |
+| estado_clinico      | VARCHAR(50)  |               | Estado clínico actual del paciente           |
+| fecha_ultima_consulta | DATE       |               | Fecha de la última consulta registrada       |
 
 **Índices:**
 
@@ -173,21 +175,53 @@ CREATE INDEX idx_respuesta_estado ON paciente_respuesta(estado_procesamiento);
 
 Observaciones registradas por el especialista sobre una respuesta diaria del paciente.
 
-| Campo          | Tipo      | Restricciones         | Descripción                                   |
-| -------------- | --------- | --------------------- | --------------------------------------------- |
-| id_observacion | BIGSERIAL | PRIMARY KEY           | Identificador único de la observación         |
-| id_respuesta   | BIGINT    | FOREIGN KEY, NOT NULL | Referencia a paciente_respuesta(id_respuesta) |
-| descripcion    | TEXT      | NOT NULL              | Contenido de la observación                   |
+| Campo             | Tipo      | Restricciones         | Descripción                                   |
+| ----------------- | --------- | --------------------- | --------------------------------------------- |
+| id_observacion    | BIGSERIAL | PRIMARY KEY           | Identificador único de la observación         |
+| id_respuesta      | BIGINT    | FOREIGN KEY, NOT NULL | Referencia a paciente_respuesta(id_respuesta) |
+| descripcion       | TEXT      | NOT NULL              | Contenido de la observación                   |
+| id_especialista   | BIGINT    | FOREIGN KEY           | Especialista que registró la observación      |
+| fecha_observacion | TIMESTAMP |                       | Fecha y hora del registro (zona Lima GMT-5)   |
 
 **Relaciones:**
 
 - **FK**: `id_respuesta` → `paciente_respuesta(id_respuesta)` (usado en WHERE e INSERT)
+- **FK**: `id_especialista` → `especialista(id_especialista)` (usado en LEFT JOIN)
 
 **Índices:**
 
 ```sql
 CREATE INDEX idx_observacion_respuesta ON observacion(id_respuesta);
 ```
+
+### atencion
+
+Registro de atenciones clínicas realizadas por el especialista en el contexto de una historia clínica. Permite documentar cada consulta con observaciones y recomendaciones en texto libre.
+
+| Campo           | Tipo        | Restricciones         | Descripción                                                              |
+| --------------- | ----------- | --------------------- | ------------------------------------------------------------------------ |
+| id_atencion     | SERIAL      | PRIMARY KEY           | Identificador único de la atención                                       |
+| id_historia     | INTEGER     | FOREIGN KEY, NOT NULL | Referencia a historia_clinica(id_historia)                               |
+| id_especialista | INTEGER     | FOREIGN KEY, NOT NULL | Especialista que registra la atención                                    |
+| fecha_atencion  | TIMESTAMP   | NOT NULL, DEFAULT NOW | Fecha y hora de la atención (zona Lima GMT-5)                            |
+| tipo_atencion   | VARCHAR(20) | NOT NULL, CHECK       | Tipo: 'Presencial', 'Virtual', 'Telefónica'                              |
+| observaciones   | TEXT        |                       | Observaciones clínicas en texto libre                                    |
+| recomendaciones | TEXT        |                       | Recomendaciones para el paciente en texto libre                          |
+
+**Relaciones:**
+
+- **FK**: `id_historia` → `historia_clinica(id_historia)`
+- **FK**: `id_especialista` → `especialista(id_especialista)`
+
+**Constraints:**
+
+```sql
+CHECK (tipo_atencion IN ('Presencial', 'Virtual', 'Telefónica'))
+```
+
+**Nota:** Solo el especialista autor puede editar su propia atención (`id_especialista` se toma automáticamente de la sesión activa).
+
+---
 
 ### evaluacion_ml
 
@@ -270,7 +304,9 @@ CREATE TABLE "paciente" (
   "intentos_fallidos" INT DEFAULT 0,
   "bloqueado_hasta" TIMESTAMP,
   "fecha_registro" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
-  "flg_activo" BOOLEAN DEFAULT true
+  "flg_activo" BOOLEAN DEFAULT true,
+  "estado_clinico" VARCHAR(50),
+  "fecha_ultima_consulta" DATE
 );
 
 CREATE TABLE "especialista" (
@@ -342,7 +378,19 @@ CREATE TABLE "paciente_respuesta" (
 CREATE TABLE "observacion" (
   "id_observacion" BIGSERIAL PRIMARY KEY,
   "id_respuesta" BIGINT NOT NULL,
-  "descripcion" TEXT NOT NULL
+  "descripcion" TEXT NOT NULL,
+  "id_especialista" BIGINT,
+  "fecha_observacion" TIMESTAMP
+);
+
+CREATE TABLE "atencion" (
+  "id_atencion" SERIAL PRIMARY KEY,
+  "id_historia" INTEGER NOT NULL,
+  "id_especialista" INTEGER NOT NULL,
+  "fecha_atencion" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "tipo_atencion" VARCHAR(20) NOT NULL CHECK (tipo_atencion IN ('Presencial', 'Virtual', 'Telefónica')),
+  "observaciones" TEXT,
+  "recomendaciones" TEXT
 );
 
 CREATE TABLE "evaluacion_ml" (
@@ -412,11 +460,27 @@ ALTER TABLE "paciente_respuesta"
   FOREIGN KEY ("id_evaluacion")
   REFERENCES "evaluacion_ml" ("id_evaluacion");
 
--- Foreign Key para observacion
+-- Foreign Keys para observacion
 ALTER TABLE "observacion"
   ADD CONSTRAINT "fk_observacion_respuesta"
   FOREIGN KEY ("id_respuesta")
   REFERENCES "paciente_respuesta" ("id_respuesta");
+
+ALTER TABLE "observacion"
+  ADD CONSTRAINT "fk_observacion_especialista"
+  FOREIGN KEY ("id_especialista")
+  REFERENCES "especialista" ("id_especialista");
+
+-- Foreign Keys para atencion
+ALTER TABLE "atencion"
+  ADD CONSTRAINT "fk_atencion_historia"
+  FOREIGN KEY ("id_historia")
+  REFERENCES "historia_clinica" ("id_historia");
+
+ALTER TABLE "atencion"
+  ADD CONSTRAINT "fk_atencion_especialista"
+  FOREIGN KEY ("id_especialista")
+  REFERENCES "especialista" ("id_especialista");
 
 -- Foreign Key para evaluacion_ml
 ALTER TABLE "evaluacion_ml"
@@ -545,11 +609,11 @@ Para generar un hash real en Node.js:
   const hash = await bcrypt.hash('tuContraseña', 10);
 */
 
-INSERT INTO paciente (dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia)
+INSERT INTO paciente (dni, nombres, apellidos, fecha_nacimiento, sexo, direccion, telefono, correo, contacto_emergencia, telefono_emergencia, estado_clinico, fecha_ultima_consulta)
 VALUES
-('87654321', 'Juan', 'Pérez López', '1990-05-15', 'M', 'Av. Principal 123', '912345678', 'jperez@email.com', 'María Pérez', '923456789'),
-('98765432', 'Ana', 'Torres Mendoza', '1985-08-20', 'F', 'Jr. Los Olivos 456', '923456789', 'atorres@email.com', 'Pedro Torres', '934567890'),
-('45678912', 'Luis', 'Martínez Silva', '1992-03-10', 'M', 'Calle Las Flores 789', '934567891', 'lmartinez@email.com', 'Rosa Martínez', '945678901');
+('87654321', 'Juan', 'Pérez López', '1990-05-15', 'M', 'Av. Principal 123', '912345678', 'jperez@email.com', 'María Pérez', '923456789', 'En tratamiento', '2026-04-20'),
+('98765432', 'Ana', 'Torres Mendoza', '1985-08-20', 'F', 'Jr. Los Olivos 456', '923456789', 'atorres@email.com', 'Pedro Torres', '934567890', 'Seguimiento', '2026-03-15'),
+('45678912', 'Luis', 'Martínez Silva', '1992-03-10', 'M', 'Calle Las Flores 789', '934567891', 'lmartinez@email.com', 'Rosa Martínez', '945678901', 'Alta', '2026-02-10');
 
 INSERT INTO historia_clinica (
     id_paciente,
@@ -661,6 +725,40 @@ VALUES
     'Crónica',
     'Dr. Roberto Sánchez - Gastroenterólogo',
     'Tratamiento para gastritis crónica. Paciente refiere mejoría de síntomas con el tratamiento.'
+);
+
+INSERT INTO atencion (id_historia, id_especialista, fecha_atencion, tipo_atencion, observaciones, recomendaciones)
+VALUES
+(
+    1,
+    1,
+    NOW() AT TIME ZONE 'America/Lima',
+    'Presencial',
+    'Paciente muestra avances en el manejo de la ansiedad. Refiere menor frecuencia de episodios durante la semana. Mantiene técnicas de respiración aprendidas.',
+    'Continuar con técnicas de relajación. Incrementar actividad física a 4 veces por semana. Próxima sesión en 2 semanas.'
+),
+(
+    2,
+    2,
+    NOW() AT TIME ZONE 'America/Lima',
+    'Virtual',
+    'Paciente reporta leve mejoría en estado anímico. Duerme mejor con apoyo farmacológico. Aún presenta episodios de llanto espontáneo.',
+    'Mantener dosis actual de medicación. Incorporar rutina de actividades placenteras diarias. Evaluar adherencia terapéutica en próxima consulta.'
+);
+
+INSERT INTO observacion (id_respuesta, descripcion, id_especialista, fecha_observacion)
+VALUES
+(
+    1,
+    'Paciente reporta mejoría en el manejo del estrés laboral. Se observa mayor autoconciencia emocional.',
+    1,
+    NOW() AT TIME ZONE 'America/Lima'
+),
+(
+    1,
+    'Se recomienda continuar con las técnicas de mindfulness trabajadas en sesión.',
+    2,
+    NOW() AT TIME ZONE 'America/Lima'
 );
 ```
 

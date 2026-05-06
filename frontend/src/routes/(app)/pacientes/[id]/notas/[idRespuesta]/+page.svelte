@@ -7,6 +7,7 @@
 
 	const idPaciente = $page.params.id;
 	const idRespuesta = $page.params.idRespuesta;
+	const currentUserId = data.currentUserId;
 
 	let isReprocesando = $state(false);
 	let mensajeReprocesar = $state(null);
@@ -15,6 +16,9 @@
 	let editandoObservaciones = $state(false);
 	let guardandoObservaciones = $state(false);
 	let mensajeObservaciones = $state(null);
+
+	const tieneObservacionesPropias = $derived(observaciones.some(o => o.id_especialista === currentUserId));
+	const puedeEditarObservaciones = $derived(tieneObservacionesPropias || observaciones.length < 3);
 
 	function formatearFecha(fecha) {
 		return new Date(fecha).toLocaleString('es-PE', {
@@ -40,19 +44,27 @@
 	}
 
 	function iniciarEdicionObservaciones() {
-		observacionesEditables =
-			observaciones.length > 0 ? observaciones.map((observacion) => observacion.descripcion) : [''];
+		// Solo las propias son editables; las ajenas se muestran aparte como solo lectura
+		const propias = observaciones.filter((o) => o.id_especialista === currentUserId);
+		observacionesEditables = propias.length > 0
+			? propias.map((o) => ({ id_observacion: o.id_observacion, descripcion: o.descripcion }))
+			: [];
 		editandoObservaciones = true;
 		mensajeObservaciones = null;
 	}
 
 	function agregarObservacion() {
-		observacionesEditables = [...observacionesEditables, ''];
+		if (observaciones.length >= 3) return;
+		observacionesEditables = [...observacionesEditables, { id_observacion: null, descripcion: '' }];
+	}
+
+	function eliminarObservacionEditable(index) {
+		observacionesEditables = observacionesEditables.filter((_, i) => i !== index);
 	}
 
 	function actualizarObservacion(index, value) {
-		observacionesEditables = observacionesEditables.map((observacion, currentIndex) =>
-			currentIndex === index ? value : observacion
+		observacionesEditables = observacionesEditables.map((o, i) =>
+			i === index ? { ...o, descripcion: value } : o
 		);
 	}
 
@@ -341,7 +353,7 @@
 								Observaciones
 							</h2>
 
-							{#if !editandoObservaciones}
+							{#if !editandoObservaciones && puedeEditarObservaciones}
 								<button
 									type="button"
 									onclick={iniciarEdicionObservaciones}
@@ -373,41 +385,61 @@
 
 						{#if editandoObservaciones}
 							<div class="space-y-4">
-								<button
-									type="button"
-									onclick={agregarObservacion}
-									class="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-200"
-								>
-									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 4v16m8-8H4"
-										/>
-									</svg>
-									Agregar observación
-								</button>
-
-								<div class="space-y-4">
-									{#each observacionesEditables as observacion, index (`editable-${index}`)}
-										<div>
-											<label
-												class="mb-2 block text-sm font-semibold text-neutral-700"
-												for={`observacion-${index}`}
-											>
-												Observación {index + 1}
-											</label>
-											<textarea
-												id={`observacion-${index}`}
-												class="min-h-28 w-full rounded-lg border border-neutral-300 bg-white p-4 text-neutral-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none"
-												placeholder="Escribe una observación"
-												value={observacion}
-												oninput={(event) => actualizarObservacion(index, event.currentTarget.value)}
-											></textarea>
+								<!-- Observaciones de otros especialistas (solo lectura) -->
+								{#each observaciones.filter(o => o.id_especialista !== currentUserId) as obs, index}
+									<div class="rounded-lg border border-neutral-100 bg-gray-50 p-4 opacity-70">
+										<div class="mb-1 flex items-center justify-between">
+											<span class="text-xs font-medium text-neutral-500">Solo lectura</span>
+											<div class="text-right text-xs text-neutral-400">
+												{#if obs.especialista_nombres}
+													<span class="block">{obs.especialista_nombres} {obs.especialista_apellidos}</span>
+												{/if}
+											</div>
 										</div>
-									{/each}
-								</div>
+										<p class="text-sm text-neutral-600">{obs.descripcion}</p>
+									</div>
+								{/each}
+
+								<!-- Observaciones propias editables -->
+								{#each observacionesEditables as obs, index (`editable-${index}`)}
+									<div>
+										<div class="mb-1 flex items-center justify-between">
+											<label class="text-sm font-semibold text-neutral-700" for={`observacion-${index}`}>
+												Observación
+											</label>
+											<button
+												type="button"
+												onclick={() => eliminarObservacionEditable(index)}
+												class="text-xs text-red-500 hover:text-red-700"
+												title="Eliminar observación"
+											>
+												Eliminar
+											</button>
+										</div>
+										<textarea
+											id={`observacion-${index}`}
+											class="min-h-28 w-full rounded-lg border border-neutral-300 bg-white p-4 text-neutral-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none"
+											placeholder="Escribe una observación"
+											value={obs.descripcion}
+											oninput={(event) => actualizarObservacion(index, event.currentTarget.value)}
+										></textarea>
+									</div>
+								{/each}
+
+								{#if observaciones.length < 3}
+									<button
+										type="button"
+										onclick={agregarObservacion}
+										class="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-200"
+									>
+										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+										</svg>
+										Agregar observación
+									</button>
+								{:else}
+									<p class="text-xs text-neutral-400">Límite de 3 observaciones alcanzado.</p>
+								{/if}
 
 								<div class="flex justify-end">
 									<button
@@ -417,28 +449,13 @@
 										class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
 									>
 										{#if guardandoObservaciones}
-											<svg
-												class="h-4 w-4 animate-spin"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-												/>
+											<svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 											</svg>
 											Guardando...
 										{:else}
 											<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M5 13l4 4L19 7"
-												/>
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 											</svg>
 											Guardar cambios
 										{/if}
@@ -449,9 +466,23 @@
 							<div class="space-y-4">
 								{#each observaciones as observacion, index (observacion.id_observacion ?? `obs-${index}`)}
 									<div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-										<h3 class="mb-2 text-sm font-semibold text-neutral-700">
-											Observación {index + 1}
-										</h3>
+										<div class="mb-2 flex items-center justify-between">
+											<h3 class="text-sm font-semibold text-neutral-700">
+												Observación {index + 1}
+											</h3>
+											<div class="flex items-start gap-4">
+												<div class="text-right text-xs text-neutral-500">
+													{#if observacion.especialista_nombres}
+														<span class="block">{observacion.especialista_nombres} {observacion.especialista_apellidos}</span>
+													{/if}
+													{#if observacion.fecha_observacion}
+														<span class="block">
+															{new Date(observacion.fecha_observacion).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })}
+														</span>
+													{/if}
+												</div>
+											</div>
+										</div>
 										<p class="whitespace-pre-wrap text-neutral-900">{observacion.descripcion}</p>
 									</div>
 								{/each}

@@ -2,7 +2,8 @@ import { error } from '@sveltejs/kit';
 import * as respuestasService from '$lib/server/services/respuestas.js';
 import * as pacientesService from '$lib/server/services/pacientes.js';
 
-export async function load({ params }) {
+export async function load({ params, parent }) {
+	const { user } = await parent();
 	const idPaciente = parseInt(params.id);
 	const idRespuesta = parseInt(params.idRespuesta);
 
@@ -23,6 +24,7 @@ export async function load({ params }) {
 	return {
 		paciente,
 		respuesta,
-		observaciones
+		observaciones,
+		currentUserId: user?.id_especialista ?? null
 	};
 }
