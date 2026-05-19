@@ -18,8 +18,11 @@
 	let validacionActual = $state(validacionInicial);
 	let guardando = $state(false);
 	let mensaje = $state(null);
+	let editandoValidacion = $state(!validacionInicial);
 
 	function inferirDecision(validacion) {
+		if (!validacion) return null;
+
 		return (
 			validacion?.coincidencias?.decision ??
 			(validacion?.util_para_entrenamiento ? 'modificar' : 'aceptar')
@@ -37,16 +40,69 @@
 		return { ...diagnosticoModelo };
 	}
 
-	let form = $state({
-		decision: inferirDecision(validacionInicial),
-		diagnosticoEspecialista: getDiagnosticoInicial(validacionInicial),
-		nivelConfianza: validacionInicial?.nivel_confianza ?? 80,
-		observaciones: validacionInicial?.observaciones ?? '',
-		recomendacionPaciente: validacionInicial?.recomendacion_paciente ?? '',
-		requiereSeguimiento: Boolean(validacionInicial?.requiere_seguimiento)
-	});
+	function buildFormState(validacion) {
+		return {
+			decision: inferirDecision(validacion),
+			diagnosticoEspecialista: getDiagnosticoInicial(validacion),
+			nivelConfianza: validacion?.nivel_confianza ?? 80,
+			observaciones: validacion?.observaciones ?? '',
+			recomendacionPaciente: validacion?.recomendacion_paciente ?? '',
+			requiereSeguimiento: Boolean(validacion?.requiere_seguimiento)
+		};
+	}
 
-	const requiereReentrenamiento = $derived(form.decision !== 'aceptar');
+	let form = $state(buildFormState(validacionInicial));
+	const estadoValidacion = $derived(validacionActual ? 'validada' : 'pendiente');
+
+	function getBadgeEstadoValidacion(estado) {
+		if (estado === 'validada') {
+			return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+		}
+		return 'bg-amber-100 text-amber-800 border-amber-200';
+	}
+
+	function iniciarEdicionValidacion() {
+		form = buildFormState(validacionActual);
+		editandoValidacion = true;
+		mensaje = null;
+	}
+
+	function cancelarEdicionValidacion() {
+		form = buildFormState(validacionActual);
+		editandoValidacion = false;
+		mensaje = null;
+	}
+
+	function getTextoDecision(decision) {
+		const textos = {
+			aceptar: 'Aceptar',
+			modificar: 'Modificar',
+			rechazar: 'Rechazar'
+		};
+
+		return textos[decision] ?? 'Pendiente';
+	}
+
+	function getDecisionCardClasses(decision) {
+		const clases = {
+			aceptar: 'border-emerald-200 bg-emerald-50',
+			modificar: 'border-amber-200 bg-amber-50',
+			rechazar: 'border-rose-200 bg-rose-50'
+		};
+
+		return clases[decision] ?? 'border-neutral-200 bg-neutral-50';
+	}
+
+	function getDiagnosticoTexto(diagnostico = {}) {
+		const activos = [];
+		if (diagnostico.depression) activos.push('Depresión');
+		if (diagnostico.anxiety) activos.push('Ansiedad');
+		return activos.length > 0 ? activos.join(' y ') : 'Ninguno';
+	}
+
+	function puedeGuardarValidacion() {
+		return Boolean(form.decision);
+	}
 
 	function formatearFecha(fecha) {
 		return new Date(fecha).toLocaleString('es-PE', {
@@ -84,6 +140,14 @@
 	}
 
 	async function guardarValidacion() {
+		if (!puedeGuardarValidacion()) {
+			mensaje = {
+				tipo: 'error',
+				texto: 'Selecciona una decisión del especialista antes de guardar la validación.'
+			};
+			return;
+		}
+
 		guardando = true;
 		mensaje = null;
 
@@ -100,14 +164,12 @@
 
 			if (response.ok && result.success) {
 				validacionActual = result.validacion;
+				form = buildFormState(result.validacion);
+				editandoValidacion = false;
 				mensaje = {
 					tipo: 'success',
 					texto: 'La validación clínica se guardó correctamente.'
 				};
-
-				if (form.decision === 'aceptar') {
-					form.diagnosticoEspecialista = { ...diagnosticoModelo };
-				}
 				return;
 			}
 
@@ -152,14 +214,6 @@
 			<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 				<div>
 					<h1 class="flex items-center gap-3 text-3xl font-bold text-white">
-						<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
 						Validación de Diagnóstico
 					</h1>
 					<p class="mt-2 text-white/80">
@@ -176,6 +230,13 @@
 				>
 					<p class="font-semibold">Especialista actual</p>
 					<p>{data.user.nombres} {data.user.apellidos}</p>
+					<span
+						class="mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold {getBadgeEstadoValidacion(
+							estadoValidacion
+						)}"
+					>
+						{estadoValidacion === 'validada' ? 'Validación registrada' : 'Pendiente de validación'}
+					</span>
 				</div>
 			</div>
 		</div>
@@ -262,15 +323,39 @@
 
 				<div class="card">
 					<div class="card-body">
-						<div class="mb-6 flex flex-col gap-2">
-							<h2 class="text-xl font-bold text-neutral-900">Validación clínica</h2>
-							<p class="text-sm text-neutral-600">
-								Elige si aceptas el diagnóstico sugerido, si lo rechazas o si deseas ajustarlo.
-							</p>
-							{#if validacionActual}
-								<p class="text-xs text-neutral-500">
-									Última actualización: {formatearFecha(validacionActual.fecha_validacion)}
+						<div class="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+							<div class="flex flex-col gap-2">
+								<h2 class="text-xl font-bold text-neutral-900">Validación clínica</h2>
+								<p class="text-sm text-neutral-600">
+									Elige si aceptas el diagnóstico sugerido, si lo rechazas o si deseas ajustarlo.
 								</p>
+								{#if validacionActual}
+									<p class="text-xs text-neutral-500">
+										Última actualización: {formatearFecha(validacionActual.fecha_validacion)}
+									</p>
+								{:else}
+									<p class="text-xs font-medium text-amber-700">
+										Esta nota aún está pendiente de validación.
+									</p>
+								{/if}
+							</div>
+
+							{#if validacionActual && !editandoValidacion}
+								<button
+									type="button"
+									onclick={iniciarEdicionValidacion}
+									class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+								>
+									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+										/>
+									</svg>
+									Editar validación
+								</button>
 							{/if}
 						</div>
 
@@ -284,199 +369,269 @@
 							</div>
 						{/if}
 
-						<div class="space-y-6">
-							<div>
-								<label class="mb-3 block text-sm font-semibold text-neutral-700">
-									Decisión del especialista
-								</label>
-								<div class="grid gap-3 md:grid-cols-3">
-									<button
-										type="button"
-										onclick={() => seleccionarDecision('aceptar')}
-										class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
-										'aceptar'
-											? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-											: 'border-neutral-200 bg-white text-neutral-700 hover:border-emerald-200'}"
+						{#if validacionActual && !editandoValidacion}
+							<div class="space-y-5">
+								<div class="grid gap-4 md:grid-cols-2">
+									<div
+										class="rounded-xl border p-4 {getDecisionCardClasses(
+											inferirDecision(validacionActual)
+										)}"
 									>
-										<p class="font-semibold">Aceptar</p>
-										<p class="mt-1 text-sm">Confirmo el diagnóstico sugerido por el modelo.</p>
-									</button>
-
-									<button
-										type="button"
-										onclick={() => seleccionarDecision('modificar')}
-										class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
-										'modificar'
-											? 'border-amber-500 bg-amber-50 text-amber-800'
-											: 'border-neutral-200 bg-white text-neutral-700 hover:border-amber-200'}"
-									>
-										<p class="font-semibold">Modificar</p>
-										<p class="mt-1 text-sm">Ajusto parcialmente el diagnóstico sugerido.</p>
-									</button>
-
-									<button
-										type="button"
-										onclick={() => seleccionarDecision('rechazar')}
-										class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
-										'rechazar'
-											? 'border-rose-500 bg-rose-50 text-rose-800'
-											: 'border-neutral-200 bg-white text-neutral-700 hover:border-rose-200'}"
-									>
-										<p class="font-semibold">Rechazar</p>
-										<p class="mt-1 text-sm">
-											Descarto el diagnóstico actual y registro uno diferente.
+										<p class="text-sm font-semibold text-neutral-700">Decisión registrada</p>
+										<p class="mt-2 text-lg font-bold text-neutral-900">
+											{getTextoDecision(inferirDecision(validacionActual))}
 										</p>
-									</button>
-								</div>
-							</div>
-
-							<div class="rounded-xl border border-neutral-200 bg-neutral-50 p-5">
-								<div class="mb-4 flex items-center justify-between">
-									<div>
-										<h3 class="font-semibold text-neutral-900">Diagnóstico del especialista</h3>
-										<p class="text-sm text-neutral-600">
-											Marca las condiciones que consideras presentes.
+									</div>
+									<div class="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+										<p class="text-sm font-semibold text-neutral-700">
+											Diagnóstico del especialista
+										</p>
+										<p class="mt-2 text-lg font-bold text-neutral-900">
+											{getDiagnosticoTexto(validacionActual.diagnostico_especialista)}
 										</p>
 									</div>
 								</div>
 
-								<div class="grid gap-3 md:grid-cols-2">
-									<label
-										class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-4"
-									>
-										<input
-											type="checkbox"
-											checked={form.diagnosticoEspecialista.depression}
-											disabled={form.decision === 'aceptar'}
-											onchange={(event) =>
-												actualizarDiagnostico('depression', event.currentTarget.checked)}
-											class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
-										/>
-										<div>
-											<p class="font-semibold text-neutral-900">Depresión</p>
-											<p class="text-sm text-neutral-600">Indicadores clínicos compatibles.</p>
-										</div>
-									</label>
+								<div class="grid gap-4 md:grid-cols-2">
+									<div class="rounded-xl border border-neutral-200 bg-white p-4">
+										<p class="text-sm font-semibold text-neutral-700">Nivel de confianza</p>
+										<p class="mt-2 text-lg font-bold text-neutral-900">
+											{validacionActual.nivel_confianza ?? 'No registrado'}
+										</p>
+									</div>
+									<div class="rounded-xl border border-neutral-200 bg-white p-4">
+										<p class="text-sm font-semibold text-neutral-700">Requiere seguimiento</p>
+										<p class="mt-2 text-lg font-bold text-neutral-900">
+											{validacionActual.requiere_seguimiento ? 'Sí' : 'No'}
+										</p>
+									</div>
+								</div>
 
-									<label
-										class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-4"
-									>
-										<input
-											type="checkbox"
-											checked={form.diagnosticoEspecialista.anxiety}
-											disabled={form.decision === 'aceptar'}
-											onchange={(event) =>
-												actualizarDiagnostico('anxiety', event.currentTarget.checked)}
-											class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
-										/>
-										<div>
-											<p class="font-semibold text-neutral-900">Ansiedad</p>
-											<p class="text-sm text-neutral-600">Indicadores clínicos compatibles.</p>
-										</div>
-									</label>
+								<div class="rounded-xl border border-neutral-200 bg-white p-4">
+									<p class="text-sm font-semibold text-neutral-700">Observaciones clínicas</p>
+									<p class="mt-2 whitespace-pre-wrap text-neutral-800">
+										{validacionActual.observaciones || 'Sin observaciones registradas.'}
+									</p>
+								</div>
+
+								<div class="rounded-xl border border-neutral-200 bg-white p-4">
+									<p class="text-sm font-semibold text-neutral-700">Recomendación al paciente</p>
+									<p class="mt-2 whitespace-pre-wrap text-neutral-800">
+										{validacionActual.recomendacion_paciente || 'Sin recomendación registrada.'}
+									</p>
 								</div>
 							</div>
+						{:else}
+							<div class="space-y-6">
+								<div>
+									<p class="mb-3 block text-sm font-semibold text-neutral-700">
+										Decisión del especialista
+									</p>
+									<div class="grid gap-3 md:grid-cols-3">
+										<button
+											type="button"
+											onclick={() => seleccionarDecision('aceptar')}
+											class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
+											'aceptar'
+												? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+												: 'border-neutral-200 bg-white text-neutral-700 hover:border-emerald-200'}"
+										>
+											<p class="font-semibold">Aceptar</p>
+											<p class="mt-1 text-sm">Confirmo el diagnóstico sugerido por el modelo.</p>
+										</button>
 
-							<div class="grid gap-6 md:grid-cols-2">
+										<button
+											type="button"
+											onclick={() => seleccionarDecision('modificar')}
+											class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
+											'modificar'
+												? 'border-amber-500 bg-amber-50 text-amber-800'
+												: 'border-neutral-200 bg-white text-neutral-700 hover:border-amber-200'}"
+										>
+											<p class="font-semibold">Modificar</p>
+											<p class="mt-1 text-sm">Ajusto parcialmente el diagnóstico sugerido.</p>
+										</button>
+
+										<button
+											type="button"
+											onclick={() => seleccionarDecision('rechazar')}
+											class="rounded-xl border px-4 py-4 text-left transition {form.decision ===
+											'rechazar'
+												? 'border-rose-500 bg-rose-50 text-rose-800'
+												: 'border-neutral-200 bg-white text-neutral-700 hover:border-rose-200'}"
+										>
+											<p class="font-semibold">Rechazar</p>
+											<p class="mt-1 text-sm">
+												Descarto el diagnóstico actual y registro uno diferente.
+											</p>
+										</button>
+									</div>
+
+									{#if !form.decision}
+										<p class="mt-3 text-sm font-medium text-amber-700">
+											Selecciona una decisión para completar la validación.
+										</p>
+									{/if}
+								</div>
+
+								<div class="rounded-xl border border-neutral-200 bg-neutral-50 p-5">
+									<div class="mb-4 flex items-center justify-between">
+										<div>
+											<h3 class="font-semibold text-neutral-900">Diagnóstico del especialista</h3>
+											<p class="text-sm text-neutral-600">
+												Marca las condiciones que consideras presentes.
+											</p>
+										</div>
+									</div>
+
+									<div class="grid gap-3 md:grid-cols-2">
+										<label
+											class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-4"
+										>
+											<input
+												type="checkbox"
+												checked={form.diagnosticoEspecialista.depression}
+												disabled={form.decision === 'aceptar'}
+												onchange={(event) =>
+													actualizarDiagnostico('depression', event.currentTarget.checked)}
+												class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
+											/>
+											<div>
+												<p class="font-semibold text-neutral-900">Depresión</p>
+												<p class="text-sm text-neutral-600">Indicadores clínicos compatibles.</p>
+											</div>
+										</label>
+
+										<label
+											class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-4"
+										>
+											<input
+												type="checkbox"
+												checked={form.diagnosticoEspecialista.anxiety}
+												disabled={form.decision === 'aceptar'}
+												onchange={(event) =>
+													actualizarDiagnostico('anxiety', event.currentTarget.checked)}
+												class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
+											/>
+											<div>
+												<p class="font-semibold text-neutral-900">Ansiedad</p>
+												<p class="text-sm text-neutral-600">Indicadores clínicos compatibles.</p>
+											</div>
+										</label>
+									</div>
+								</div>
+
+								<div class="grid gap-6 md:grid-cols-2">
+									<div>
+										<label
+											for="nivelConfianza"
+											class="mb-2 block text-sm font-semibold text-neutral-700"
+										>
+											Nivel de confianza (0-100)
+										</label>
+										<input
+											id="nivelConfianza"
+											type="number"
+											min="0"
+											max="100"
+											class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+											value={form.nivelConfianza ?? ''}
+											oninput={(event) => (form.nivelConfianza = Number(event.currentTarget.value))}
+										/>
+									</div>
+
+									<label
+										class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-4 text-sm text-neutral-700"
+									>
+										<input
+											type="checkbox"
+											checked={form.requiereSeguimiento}
+											onchange={(event) => (form.requiereSeguimiento = event.currentTarget.checked)}
+											class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
+										/>
+										El paciente requiere seguimiento adicional
+									</label>
+								</div>
+
 								<div>
 									<label
-										for="nivelConfianza"
+										for="observaciones"
 										class="mb-2 block text-sm font-semibold text-neutral-700"
 									>
-										Nivel de confianza (0-100)
+										Observaciones clínicas
 									</label>
-									<input
-										id="nivelConfianza"
-										type="number"
-										min="0"
-										max="100"
+									<textarea
+										id="observaciones"
+										rows="5"
 										class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
-										value={form.nivelConfianza ?? ''}
-										oninput={(event) => (form.nivelConfianza = Number(event.currentTarget.value))}
-									/>
+										placeholder="Explica por qué aceptas, rechazas o modificas el diagnóstico sugerido."
+										bind:value={form.observaciones}
+									></textarea>
 								</div>
 
-								<label
-									class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-4 text-sm text-neutral-700"
-								>
-									<input
-										type="checkbox"
-										checked={form.requiereSeguimiento}
-										onchange={(event) => (form.requiereSeguimiento = event.currentTarget.checked)}
-										class="h-4 w-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
-									/>
-									El paciente requiere seguimiento adicional
-								</label>
-							</div>
+								<div>
+									<label
+										for="recomendacionPaciente"
+										class="mb-2 block text-sm font-semibold text-neutral-700"
+									>
+										Recomendación para el paciente
+									</label>
+									<textarea
+										id="recomendacionPaciente"
+										rows="4"
+										class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+										placeholder="Indica acciones sugeridas, cuidados o siguientes pasos."
+										bind:value={form.recomendacionPaciente}
+									></textarea>
+								</div>
 
-							<div>
-								<label
-									for="observaciones"
-									class="mb-2 block text-sm font-semibold text-neutral-700"
-								>
-									Observaciones clínicas
-								</label>
-								<textarea
-									id="observaciones"
-									rows="5"
-									class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
-									placeholder="Explica por qué aceptas, rechazas o modificas el diagnóstico sugerido."
-									bind:value={form.observaciones}
-								></textarea>
-							</div>
-
-							<div>
-								<label
-									for="recomendacionPaciente"
-									class="mb-2 block text-sm font-semibold text-neutral-700"
-								>
-									Recomendación para el paciente
-								</label>
-								<textarea
-									id="recomendacionPaciente"
-									rows="4"
-									class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
-									placeholder="Indica acciones sugeridas, cuidados o siguientes pasos."
-									bind:value={form.recomendacionPaciente}
-								></textarea>
-							</div>
-
-							<div class="flex justify-end">
-								<button
-									type="button"
-									onclick={guardarValidacion}
-									disabled={guardando}
-									class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-								>
-									{#if guardando}
-										<svg
-											class="h-5 w-5 animate-spin"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
+								<div class="flex justify-end gap-3">
+									{#if validacionActual}
+										<button
+											type="button"
+											onclick={cancelarEdicionValidacion}
+											class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-5 py-3 font-semibold text-neutral-700 transition hover:bg-neutral-50"
 										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-											/>
-										</svg>
-										Guardando...
-									{:else}
-										<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/>
-										</svg>
-										Guardar validación
+											Cancelar
+										</button>
 									{/if}
-								</button>
+
+									<button
+										type="button"
+										onclick={guardarValidacion}
+										disabled={guardando || !puedeGuardarValidacion()}
+										class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										{#if guardando}
+											<svg
+												class="h-5 w-5 animate-spin"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+												/>
+											</svg>
+											Guardando...
+										{:else}
+											<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M5 13l4 4L19 7"
+												/>
+											</svg>
+											{validacionActual ? 'Guardar cambios' : 'Guardar validación'}
+										{/if}
+									</button>
+								</div>
 							</div>
-						</div>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -497,11 +652,21 @@
 							</div>
 							<div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
 								<span>Decisión actual</span>
-								<span class="font-semibold capitalize">{form.decision}</span>
+								<span class="font-semibold capitalize"
+									>{validacionActual
+										? getTextoDecision(inferirDecision(validacionActual))
+										: 'Pendiente'}</span
+								>
 							</div>
 							<div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
 								<span>Registro útil para futuro análisis</span>
-								<span class="font-semibold">{requiereReentrenamiento ? 'Sí' : 'No'}</span>
+								<span class="font-semibold"
+									>{validacionActual
+										? inferirDecision(validacionActual) !== 'aceptar'
+											? 'Sí'
+											: 'No'
+										: 'Pendiente'}</span
+								>
 							</div>
 						</div>
 					</div>
