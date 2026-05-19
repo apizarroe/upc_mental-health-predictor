@@ -1,13 +1,11 @@
 <script>
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 
 	let { data } = $props();
 
 	const idPaciente = data.paciente.id_paciente;
 	const idRespuesta = data.respuesta.id_respuesta;
-	const esAdmin = data.user?.rol === 'admin';
 
 	const diagnosticoModelo = data.diagnosticoModelo ?? {
 		depression: false,
@@ -18,11 +16,8 @@
 
 	const validacionInicial = data.validacionActual;
 	let validacionActual = $state(validacionInicial);
-	let retrainingStatus = $state(data.retrainingStatus);
 	let guardando = $state(false);
-	let iniciandoReentrenamiento = $state(false);
 	let mensaje = $state(null);
-	let mensajeReentrenamiento = $state(null);
 
 	function inferirDecision(validacion) {
 		return (
@@ -88,30 +83,6 @@
 		};
 	}
 
-	async function cargarEstadoReentrenamiento() {
-		if (!esAdmin) return;
-
-		try {
-			const response = await fetch('/api/ml/reentrenar');
-			const result = await response.json();
-
-			if (response.ok && result.success) {
-				retrainingStatus = result.status;
-			}
-		} catch (error) {
-			console.error('Error al consultar estado de reentrenamiento:', error);
-		}
-	}
-
-	onMount(() => {
-		if (!esAdmin) return undefined;
-
-		cargarEstadoReentrenamiento();
-		const intervalId = window.setInterval(cargarEstadoReentrenamiento, 5000);
-
-		return () => window.clearInterval(intervalId);
-	});
-
 	async function guardarValidacion() {
 		guardando = true;
 		mensaje = null;
@@ -137,8 +108,6 @@
 				if (form.decision === 'aceptar') {
 					form.diagnosticoEspecialista = { ...diagnosticoModelo };
 				}
-
-				await cargarEstadoReentrenamiento();
 				return;
 			}
 
@@ -154,44 +123,6 @@
 			};
 		} finally {
 			guardando = false;
-		}
-	}
-
-	async function iniciarReentrenamiento() {
-		iniciandoReentrenamiento = true;
-		mensajeReentrenamiento = null;
-
-		try {
-			const response = await fetch('/api/ml/reentrenar', {
-				method: 'POST'
-			});
-			const result = await response.json();
-
-			if (response.ok && result.success) {
-				retrainingStatus = result.status;
-				mensajeReentrenamiento = {
-					tipo: 'success',
-					texto: result.message || 'Reentrenamiento iniciado correctamente.'
-				};
-				return;
-			}
-
-			mensajeReentrenamiento = {
-				tipo: response.status === 409 ? 'warning' : 'error',
-				texto: result.message || result.error || 'No se pudo iniciar el reentrenamiento.'
-			};
-
-			if (result.status) {
-				retrainingStatus = result.status;
-			}
-		} catch (error) {
-			console.error('Error al iniciar reentrenamiento:', error);
-			mensajeReentrenamiento = {
-				tipo: 'error',
-				texto: 'Error de conexión al iniciar el reentrenamiento.'
-			};
-		} finally {
-			iniciandoReentrenamiento = false;
 		}
 	}
 </script>
@@ -407,13 +338,6 @@
 											Marca las condiciones que consideras presentes.
 										</p>
 									</div>
-									{#if requiereReentrenamiento}
-										<span
-											class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800"
-										>
-											Marcará esta validación para reentrenamiento
-										</span>
-									{/if}
 								</div>
 
 								<div class="grid gap-3 md:grid-cols-2">
@@ -576,107 +500,12 @@
 								<span class="font-semibold capitalize">{form.decision}</span>
 							</div>
 							<div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-								<span>Entrará al reentrenamiento</span>
+								<span>Registro útil para futuro análisis</span>
 								<span class="font-semibold">{requiereReentrenamiento ? 'Sí' : 'No'}</span>
 							</div>
 						</div>
 					</div>
 				</div>
-
-				{#if esAdmin}
-					<div class="card border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white">
-						<div class="card-body">
-							<div class="mb-4">
-								<h2 class="text-lg font-bold text-neutral-900">Reentrenamiento manual</h2>
-								<p class="mt-1 text-sm text-neutral-600">
-									Solo admin puede gatillar el entrenamiento usando validaciones rechazadas o
-									modificadas.
-								</p>
-							</div>
-
-							{#if mensajeReentrenamiento}
-								<div
-									class="mb-4 rounded-lg border p-4 {mensajeReentrenamiento.tipo === 'success'
-										? 'border-green-200 bg-green-50 text-green-800'
-										: mensajeReentrenamiento.tipo === 'warning'
-											? 'border-amber-200 bg-amber-50 text-amber-800'
-											: 'border-red-200 bg-red-50 text-red-800'}"
-								>
-									<p class="text-sm font-medium">{mensajeReentrenamiento.texto}</p>
-								</div>
-							{/if}
-
-							<div class="space-y-3 text-sm text-neutral-700">
-								<div class="flex items-center justify-between rounded-lg bg-white px-4 py-3">
-									<span>Validaciones pendientes</span>
-									<span class="font-semibold">{retrainingStatus?.pendingCount ?? 0}</span>
-								</div>
-								<div class="flex items-center justify-between rounded-lg bg-white px-4 py-3">
-									<span>Estado</span>
-									<span class="font-semibold">
-										{retrainingStatus?.isRunning ? 'En ejecución' : 'Disponible'}
-									</span>
-								</div>
-								<div class="flex items-center justify-between rounded-lg bg-white px-4 py-3">
-									<span>Última ejecución</span>
-									<span class="text-right font-semibold">
-										{retrainingStatus?.lastFinishedAt
-											? formatearFecha(retrainingStatus.lastFinishedAt)
-											: 'Sin registro'}
-									</span>
-								</div>
-							</div>
-
-							<button
-								type="button"
-								onclick={iniciarReentrenamiento}
-								disabled={iniciandoReentrenamiento || retrainingStatus?.isRunning}
-								class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								{#if iniciandoReentrenamiento || retrainingStatus?.isRunning}
-									<svg
-										class="h-5 w-5 animate-spin"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-										/>
-									</svg>
-									{retrainingStatus?.isRunning ? 'Reentrenando...' : 'Iniciando...'}
-								{:else}
-									<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.868v4.264a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-										/>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-									Gatillar reentrenamiento
-								{/if}
-							</button>
-
-							{#if retrainingStatus?.logTail}
-								<div class="mt-5 rounded-xl bg-neutral-950 p-4 text-xs text-emerald-200">
-									<p class="mb-2 font-semibold text-white">Log reciente</p>
-									<pre
-										class="max-h-72 overflow-auto whitespace-pre-wrap">{retrainingStatus.logTail}</pre>
-								</div>
-							{/if}
-						</div>
-					</div>
-				{/if}
 			</div>
 		</div>
 	</div>

@@ -2,7 +2,6 @@ import { error } from '@sveltejs/kit';
 import * as pacientesService from '$lib/server/services/pacientes.js';
 import * as respuestasService from '$lib/server/services/respuestas.js';
 import * as validacionesService from '$lib/server/services/validaciones.js';
-import * as reentrenamientoService from '$lib/server/services/reentrenamiento.js';
 
 export async function load({ params, parent }) {
 	const { user } = await parent();
@@ -34,8 +33,6 @@ export async function load({ params, parent }) {
 		paciente,
 		respuesta,
 		validacionActual,
-		diagnosticoModelo: validacionesService.getDiagnosticoModelo(respuesta.trastornos_detectados),
-		retrainingStatus:
-			user.rol === 'admin' ? await reentrenamientoService.getRetrainingStatus() : null
+		diagnosticoModelo: validacionesService.getDiagnosticoModelo(respuesta.trastornos_detectados)
 	};
 }
