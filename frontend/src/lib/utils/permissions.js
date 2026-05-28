@@ -26,7 +26,11 @@ export const PERMISSIONS = {
 	HISTORIAS_READ: 'historias:read',
 	HISTORIAS_CREATE: 'historias:create',
 	HISTORIAS_UPDATE: 'historias:update',
-	HISTORIAS_DELETE: 'historias:delete'
+	HISTORIAS_DELETE: 'historias:delete',
+
+	// Permisos de Indicadores del Sistema
+	INDICADORES_SISTEMA_READ: 'indicadores-sistema:read',
+	INDICADORES_SISTEMA_CREATE: 'indicadores-sistema:create'
 };
 
 // Mapeo de permisos por rol
@@ -44,7 +48,9 @@ const rolePermissions = {
 		PERMISSIONS.HISTORIAS_READ,
 		PERMISSIONS.HISTORIAS_CREATE,
 		PERMISSIONS.HISTORIAS_UPDATE,
-		PERMISSIONS.HISTORIAS_DELETE
+		PERMISSIONS.HISTORIAS_DELETE,
+		PERMISSIONS.INDICADORES_SISTEMA_READ,
+		PERMISSIONS.INDICADORES_SISTEMA_CREATE
 	],
 	[ROLES.ESPECIALISTA]: [
 		// Especialista solo puede ver pacientes
@@ -183,4 +189,31 @@ export function canUpdateHistorias(userRole) {
  */
 export function canDeleteHistorias(userRole) {
 	return hasPermission(userRole, PERMISSIONS.HISTORIAS_DELETE);
+}
+
+/**
+ * Verifica si un usuario puede acceder a indicadores del sistema
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function canAccessIndicadoresSistema(userRole) {
+	return hasPermission(userRole, PERMISSIONS.INDICADORES_SISTEMA_READ);
+}
+
+/**
+ * Verifica si un usuario puede generar reportes de indicadores del sistema
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function canCreateIndicadoresSistema(userRole) {
+	return hasPermission(userRole, PERMISSIONS.INDICADORES_SISTEMA_CREATE);
+}
+
+/**
+ * Verifica si el usuario es administrador
+ * @param {string} userRole - Rol del usuario
+ * @returns {boolean}
+ */
+export function isAdmin(userRole) {
+	return userRole === ROLES.ADMIN;
 }

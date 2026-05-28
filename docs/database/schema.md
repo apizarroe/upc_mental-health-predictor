@@ -283,6 +283,36 @@ Validación del especialista sobre los resultados de la evaluación de ML. Permi
 
 **Nota:** Esta tabla está definida en el esquema de base de datos pero **no se utiliza actualmente** en el código del frontend. Los índices se crearán cuando se implemente la funcionalidad de validación.
 
+---
+
+### reporte_indicadores_sistema
+
+Almacena los snapshots históricos de los reportes de indicadores del sistema generados por un usuario administrador. Cada registro guarda el rango consultado, el solicitante y el snapshot completo en JSONB para que la exportación CSV se reconstruya sin recalcular métricas.
+
+| Campo                       | Tipo        | Restricciones         | Descripción                                                              |
+| --------------------------- | ----------- | --------------------- | ------------------------------------------------------------------------ |
+| id_reporte                  | BIGSERIAL   | PRIMARY KEY           | Identificador único del reporte                                          |
+| fecha_generacion            | TIMESTAMP   | DEFAULT NOW, NOT NULL | Fecha y hora de generación del snapshot                                  |
+| id_especialista_solicitante | BIGINT      | FOREIGN KEY, NOT NULL | Administrador que solicitó la generación del reporte                     |
+| fecha_inicio                | DATE        | NOT NULL              | Fecha inicial del rango consultado                                       |
+| fecha_fin                   | DATE        | NOT NULL              | Fecha final del rango consultado                                         |
+| indicadores_json            | JSONB       | NOT NULL              | Snapshot completo de indicadores, metadata y desglose del reporte        |
+| formato_exportacion         | VARCHAR(20) | NOT NULL              | Formato principal de exportación. En v1 el valor esperado es `csv`       |
+
+**Relaciones:**
+
+- **FK**: `id_especialista_solicitante` → `especialista(id_especialista)`
+
+**Índices:**
+
+```sql
+CREATE INDEX idx_reporte_indicadores_fecha_generacion
+ON reporte_indicadores_sistema(fecha_generacion DESC);
+
+CREATE INDEX idx_reporte_indicadores_solicitante
+ON reporte_indicadores_sistema(id_especialista_solicitante);
+```
+
 ## Script SQL Completo
 
 ```sql
@@ -427,6 +457,16 @@ CREATE TABLE "evaluacion_validacion" (
   "util_para_entrenamiento" BOOLEAN DEFAULT true
 );
 
+CREATE TABLE "reporte_indicadores_sistema" (
+  "id_reporte" BIGSERIAL PRIMARY KEY,
+  "fecha_generacion" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  "id_especialista_solicitante" BIGINT NOT NULL,
+  "fecha_inicio" DATE NOT NULL,
+  "fecha_fin" DATE NOT NULL,
+  "indicadores_json" JSONB NOT NULL,
+  "formato_exportacion" VARCHAR(20) NOT NULL DEFAULT 'csv'
+);
+
 -- Foreign Keys para historia_clinica
 ALTER TABLE "historia_clinica"
   ADD CONSTRAINT "fk_historia_paciente"
@@ -488,6 +528,12 @@ ALTER TABLE "evaluacion_ml"
   FOREIGN KEY ("id_respuesta")
   REFERENCES "paciente_respuesta" ("id_respuesta");
 
+-- Foreign Key para reporte_indicadores_sistema
+ALTER TABLE "reporte_indicadores_sistema"
+  ADD CONSTRAINT "fk_reporte_indicadores_especialista"
+  FOREIGN KEY ("id_especialista_solicitante")
+  REFERENCES "especialista" ("id_especialista");
+
 -- Índices para tabla paciente
 CREATE INDEX idx_paciente_dni ON paciente(dni); -- Usado en login (WHERE dni = ?)
 CREATE INDEX idx_paciente_activo ON paciente(flg_activo); -- Usado en filtros
@@ -517,6 +563,10 @@ CREATE INDEX idx_observacion_respuesta ON observacion(id_respuesta); -- FK usado
 
 -- Índices para tabla evaluacion_ml
 CREATE INDEX idx_evaluacion_respuesta ON evaluacion_ml(id_respuesta); -- FK usado en LEFT JOIN
+
+-- Índices para tabla reporte_indicadores_sistema
+CREATE INDEX idx_reporte_indicadores_fecha_generacion ON reporte_indicadores_sistema(fecha_generacion DESC); -- Historial ordenado por generación
+CREATE INDEX idx_reporte_indicadores_solicitante ON reporte_indicadores_sistema(id_especialista_solicitante); -- JOIN con especialista y auditoría por solicitante
 ```
 
 ## Sistema de Autenticación y Roles
