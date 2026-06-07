@@ -31,7 +31,7 @@ export async function yaRespondioDobleHoy(idPaciente) {
 		SELECT COUNT(*) as count
 		FROM paciente_respuesta
 		WHERE id_paciente = ${idPaciente}
-		AND TO_CHAR(fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
+		AND TO_CHAR(fecha_respuesta AT TIME ZONE 'America/Lima', 'YYYY-MM-DD') = ${fechaHoy}
 	`;
 
 	return parseInt(result.count) >= 2;
@@ -113,7 +113,7 @@ export async function getRespuestasDelDia(idPaciente) {
 		FROM paciente_respuesta pr
 		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
 		WHERE pr.id_paciente = ${idPaciente}
-		AND TO_CHAR(pr.fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
+		AND TO_CHAR(pr.fecha_respuesta AT TIME ZONE 'America/Lima', 'YYYY-MM-DD') = ${fechaHoy}
 		ORDER BY pr.fecha_respuesta DESC
 	`;
 
@@ -159,11 +159,13 @@ export async function createRespuesta(data) {
 		INSERT INTO paciente_respuesta (
 			id_paciente,
 			respuestas,
-			estado_procesamiento
+			estado_procesamiento,
+			fecha_respuesta
 		) VALUES (
 			${data.id_paciente},
 			${sql.json(data.respuestas)},
-			'pendiente'
+			'pendiente',
+			NOW() AT TIME ZONE 'America/Lima'
 		)
 		RETURNING *
 	`;
@@ -262,6 +264,22 @@ export async function getRespuestaDetalle(idRespuesta) {
 		WHERE pr.id_respuesta = ${idRespuesta}
 	`;
 
+	return respuesta;
+}
+
+/**
+ * Marca una nota diaria como atendida respecto a las señales de riesgo detectadas.
+ * El valor nace en NULL y solo puede pasar a TRUE (no existe estado FALSE).
+ * @param {number} idRespuesta - ID de la respuesta
+ * @returns {Promise<Object>} - Respuesta actualizada
+ */
+export async function marcarRiesgoAtendido(idRespuesta) {
+	const [respuesta] = await sql`
+		UPDATE paciente_respuesta
+		SET riesgo_atendido = TRUE
+		WHERE id_respuesta = ${idRespuesta}
+		RETURNING *
+	`;
 	return respuesta;
 }
 

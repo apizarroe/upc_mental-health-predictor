@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import * as authService from '$lib/server/services/auth.js';
+import { getConteoAlertasMisPacientes } from '$lib/server/services/alertas.js';
 
 /**
  * Hook que verifica autenticación en todas las rutas protegidas (app)
@@ -46,9 +47,11 @@ export async function load({ cookies }) {
 		});
 
 		// Pasar datos del usuario a todas las páginas protegidas
+		const conteoAlertas = await getConteoAlertasMisPacientes(user.id_especialista);
 		return {
 			user: user,
-			requiere_cambio_password: sessionData.requiere_cambio_password || false
+			requiere_cambio_password: sessionData.requiere_cambio_password || false,
+			conteoAlertas
 		};
 	} catch (error) {
 		// Si hay error parseando la sesión, eliminar cookie y redirigir

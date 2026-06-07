@@ -19,11 +19,21 @@
 	let editandoObservaciones = $state(false);
 	let guardandoObservaciones = $state(false);
 	let mensajeObservaciones = $state(null);
+	let riesgoAtendido = $state(data.respuesta.riesgo_atendido === true);
+	let riesgoAtendidoPendiente = $state(data.respuesta.riesgo_atendido === true);
 
 	const tieneObservacionesPropias = $derived(
 		observaciones.some((o) => o.id_especialista === currentUserId)
 	);
 	const puedeEditarObservaciones = $derived(tieneObservacionesPropias || observaciones.length < 3);
+	const tieneSenalesRiesgo = $derived(
+		(data.respuesta.trastornos_detectados?.risk_assessment?.señales_detectadas?.length ?? 0) > 0
+	);
+	// Habilitado solo si, al guardar, quedará al menos una observación asociada a la nota
+	const habraObservacionesAlGuardar = $derived(
+		observaciones.some((o) => o.id_especialista !== currentUserId) ||
+			observacionesEditables.some((o) => o.descripcion.trim().length > 0)
+	);
 
 	function formatearFecha(fecha) {
 		return new Date(fecha).toLocaleString('es-PE', {
@@ -55,6 +65,7 @@
 			propias.length > 0
 				? propias.map((o) => ({ id_observacion: o.id_observacion, descripcion: o.descripcion }))
 				: [];
+		riesgoAtendidoPendiente = riesgoAtendido;
 		editandoObservaciones = true;
 		mensajeObservaciones = null;
 	}
@@ -72,6 +83,13 @@
 		observacionesEditables = observacionesEditables.map((o, i) =>
 			i === index ? { ...o, descripcion: value } : o
 		);
+	}
+
+	function alternarRiesgoAtendidoPendiente(checked) {
+		// Solo es un cambio local; se persiste recién al presionar "Guardar cambios".
+		// Una vez persistido como TRUE no puede revertirse (no existe estado FALSE).
+		if (riesgoAtendido) return;
+		riesgoAtendidoPendiente = checked;
 	}
 
 	async function reprocesarRespuesta() {
@@ -140,9 +158,31 @@
 				observaciones = result.observaciones ?? [];
 				observacionesEditables = observaciones.map((observacion) => observacion.descripcion);
 				editandoObservaciones = false;
+
+				let riesgoAtendidoOk = true;
+				if (riesgoAtendidoPendiente && !riesgoAtendido && observaciones.length > 0) {
+					try {
+						const respRiesgo = await fetch(`/api/respuestas/${idRespuesta}/riesgo-atendido`, {
+							method: 'POST'
+						});
+						const resultRiesgo = await respRiesgo.json();
+						if (respRiesgo.ok && resultRiesgo.success) {
+							riesgoAtendido = true;
+						} else {
+							riesgoAtendidoOk = false;
+						}
+					} catch (error) {
+						console.error('Error al marcar riesgo atendido:', error);
+						riesgoAtendidoOk = false;
+					}
+				}
+				riesgoAtendidoPendiente = riesgoAtendido;
+
 				mensajeObservaciones = {
-					tipo: 'success',
-					texto: 'Observaciones guardadas correctamente.'
+					tipo: riesgoAtendidoOk ? 'success' : 'error',
+					texto: riesgoAtendidoOk
+						? 'Observaciones guardadas correctamente.'
+						: 'Observaciones guardadas, pero no se pudo registrar la acción frente al riesgo.'
 				};
 			} else {
 				mensajeObservaciones = {
@@ -394,6 +434,61 @@
 							{/if}
 						</div>
 
+						{#if tieneSenalesRiesgo}
+							<div class="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+								{#if editandoObservaciones}
+									<label
+										class="flex items-center gap-3 text-sm text-neutral-700 {riesgoAtendido ||
+										!habraObservacionesAlGuardar
+											? ''
+											: 'cursor-pointer'}"
+									>
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm checkbox-error"
+											checked={riesgoAtendidoPendiente}
+											disabled={riesgoAtendido || !habraObservacionesAlGuardar}
+											onchange={(event) =>
+												alternarRiesgoAtendidoPendiente(event.currentTarget.checked)}
+										/>
+										<span>Se tomó acción frente a la(s) señal(es) de riesgo detectadas en esta nota</span>
+									</label>
+
+									{#if !riesgoAtendido}
+										{#if habraObservacionesAlGuardar}
+											<p class="mt-2 pl-7 text-xs text-neutral-500">
+												Este cambio se guardará junto con tus observaciones al presionar "Guardar
+												cambios".
+											</p>
+										{:else}
+											<p class="mt-2 pl-7 text-xs text-neutral-500">
+												Para marcar esta acción primero debes registrar al menos una observación.
+											</p>
+										{/if}
+									{/if}
+								{:else}
+									<div class="flex items-center gap-3 text-sm text-neutral-700">
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm checkbox-error"
+											checked={riesgoAtendido}
+											disabled
+										/>
+										<span>
+											{#if riesgoAtendido}
+												<span class="font-semibold text-neutral-900"
+													>Se tomó acción frente al riesgo detectado en esta nota.</span
+												>
+											{:else}
+												Aún no se ha marcado una acción frente a la(s) señal(es) de riesgo
+												detectadas en esta nota.
+											{/if}
+										</span>
+									</div>
+								{/if}
+							</div>
+						{/if}
+
 						{#if mensajeObservaciones}
 							<div
 								class="mb-4 rounded-lg border p-4 {mensajeObservaciones.tipo === 'success'
@@ -606,7 +701,50 @@
 								</div>
 							{/if}
 
-							<!-- Trastornos Detectados -->
+							<!-- Señales de Riesgo Detectadas -->
+							{#if data.respuesta.trastornos_detectados?.risk_assessment?.señales_detectadas?.length > 0}
+								{@const señales = data.respuesta.trastornos_detectados.risk_assessment.señales_detectadas}
+								{@const etiquetas = {
+									ideacion_suicida: 'Ideación suicida',
+									ideacion_pasiva: 'Ideación pasiva',
+									autolesion: 'Autolesión',
+									crisis_panico: 'Crisis de pánico',
+									perdida_control: 'Pérdida de control',
+									colapso: 'Colapso emocional',
+									descompensacion: 'Descompensación'
+								}}
+								{@const agrupadas = señales.reduce((acc, s) => {
+									if (!acc[s.tipo]) acc[s.tipo] = { nivel: s.nivel, frases: [] };
+									acc[s.tipo].frases.push(s.frase);
+									return acc;
+								}, {})}
+								<h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700">
+									<svg class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+									</svg>
+									Señales de riesgo detectadas
+								</h3>
+								<div class="rounded-lg border border-red-200 bg-red-50 p-3">
+									<ul class="space-y-2">
+										{#each Object.entries(agrupadas) as [tipo, grupo]}
+											<li>
+												<p class="text-sm font-semibold text-red-700">{etiquetas[tipo] ?? tipo}</p>
+												<ul class="mt-0.5 space-y-0.5 pl-3">
+													{#each grupo.frases as frase}
+														<li class="text-sm italic text-neutral-700">"{frase}"</li>
+													{/each}
+												</ul>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Trastornos Detectados -->
+					<div class="card">
+						<div class="card-body">
 							<div class="space-y-3">
 								<h3 class="text-sm font-semibold text-neutral-700">Trastornos Detectados</h3>
 
@@ -698,37 +836,31 @@
 									</p>
 								</div>
 							</div>
+							{#if data.respuesta.interpretacion}
+								<div class="mt-3 border-t border-neutral-200 pt-3">
+									<h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700">
+										<svg
+											class="h-4 w-4 text-blue-600"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+											/>
+										</svg>
+										Interpretación
+									</h3>
+									<p class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-neutral-700">
+										{data.respuesta.interpretacion}
+									</p>
+								</div>
+							{/if}
 						</div>
 					</div>
-
-					<!-- Interpretación -->
-					{#if data.respuesta.interpretacion}
-						<div class="card">
-							<div class="card-body">
-								<h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700">
-									<svg
-										class="h-4 w-4 text-blue-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-									Interpretación
-								</h3>
-								<p
-									class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-neutral-700"
-								>
-									{data.respuesta.interpretacion}
-								</p>
-							</div>
-						</div>
-					{/if}
 
 					<!-- Palabras Clave -->
 					{#if data.respuesta.palabras_clave}

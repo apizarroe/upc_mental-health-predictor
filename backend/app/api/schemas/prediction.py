@@ -104,6 +104,23 @@ class PredictionSummary(BaseModel):
     )
 
 
+class RiskSignal(BaseModel):
+    """Señal de riesgo detectada en el texto del paciente."""
+    tipo: str = Field(description="Tipo de señal: ideacion_suicida, autolesion, crisis_panico, etc.")
+    frase: str = Field(description="Frase exacta que activó la señal")
+    nivel: str = Field(description="Nivel de la señal: 'alto' o 'medio'")
+
+
+class RiskAssessment(BaseModel):
+    """Evaluación de riesgo clínico — capa independiente del clasificador ML."""
+    nivel_riesgo: str = Field(description="Nivel global de riesgo: 'alto', 'medio' o 'bajo'")
+    requiere_atencion: bool = Field(description="True si el especialista debe revisar con urgencia")
+    señales_detectadas: List[RiskSignal] = Field(
+        default_factory=list,
+        description="Lista de señales de riesgo encontradas"
+    )
+
+
 class AnalysisDetails(BaseModel):
     """Detalles del análisis realizado."""
 
@@ -164,6 +181,9 @@ class MentalHealthPredictionResponse(BaseModel):
     )
     summary: PredictionSummary = Field(
         description="Resumen de las predicciones"
+    )
+    risk_assessment: RiskAssessment = Field(
+        description="Evaluación de riesgo clínico (ideación suicida, crisis severa)"
     )
     analysis: AnalysisDetails = Field(
         description="Detalles del análisis"

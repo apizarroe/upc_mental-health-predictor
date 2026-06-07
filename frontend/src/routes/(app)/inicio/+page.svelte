@@ -3,6 +3,7 @@
 
 	let { data } = $props();
 	let user = $derived(data.user);
+	let conteoAlertas = $derived(data.conteoAlertas ?? 0);
 
 	// Permisos del usuario actual
 	const canCreatePatient = canCreatePacientes(user.rol);
@@ -79,6 +80,30 @@
 						</div>
 					</a>
 				{/if}
+
+				<a href="/alertas" class="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 transition-all duration-300">
+					<div class="relative mr-4 w-10 h-10 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+						</svg>
+						{#if conteoAlertas > 0}
+							<span class="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white ring-2 ring-white">
+								{conteoAlertas > 99 ? '99+' : conteoAlertas}
+							</span>
+						{/if}
+					</div>
+					<div>
+						<p class="flex items-center gap-2 font-semibold text-gray-900">
+							Alertas de Riesgo
+							{#if conteoAlertas > 0}
+								<span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+									{conteoAlertas > 99 ? '99+' : conteoAlertas} por revisar
+								</span>
+							{/if}
+						</p>
+						<p class="text-sm text-gray-600">Ver notas con señales de riesgo detectadas</p>
+					</div>
+				</a>
 			</div>
 		</div>
 	</div>

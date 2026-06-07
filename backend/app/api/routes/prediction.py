@@ -12,6 +12,8 @@ from app.api.schemas.prediction import (
     ConditionPrediction,
     MultiLabelPredictions,
     PredictionSummary,
+    RiskAssessment,
+    RiskSignal,
     AnalysisDetails,
     ModelInfo,
     ModelMetrics,
@@ -222,6 +224,8 @@ def build_multilabel_response(
     # Formatear métricas del modelo
     model_metrics = format_model_metrics(model_info_raw)
 
+    risk_raw = result.get('risk_assessment', {})
+
     return MentalHealthPredictionResponse(
         status="success",
         patient_id=request.patient_id,
@@ -244,6 +248,14 @@ def build_multilabel_response(
             has_anxiety=summary['has_anxiety'],
             conditions_detected=summary['conditions_detected'],
             interpretation=interpretation
+        ),
+        risk_assessment=RiskAssessment(
+            nivel_riesgo=risk_raw.get('nivel_riesgo', 'bajo'),
+            requiere_atencion=risk_raw.get('requiere_atencion', False),
+            señales_detectadas=[
+                RiskSignal(tipo=s['tipo'], frase=s['frase'], nivel=s['nivel'])
+                for s in risk_raw.get('señales_detectadas', [])
+            ]
         ),
         analysis=AnalysisDetails(
             combined_text_length=len(combined_text),

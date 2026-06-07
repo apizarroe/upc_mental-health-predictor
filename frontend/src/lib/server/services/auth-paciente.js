@@ -53,7 +53,7 @@ async function resetearIntentosFallidos(dni) {
 		UPDATE paciente
 		SET intentos_fallidos = 0,
 		    bloqueado_hasta = NULL,
-		    ultimo_acceso = NOW()
+		    ultimo_acceso = NOW() AT TIME ZONE 'America/Lima'
 		WHERE dni = ${dni}
 	`;
 }
@@ -200,7 +200,7 @@ export async function cambiarPasswordPaciente(id_paciente, passwordActual, passw
 	await sql`
 		UPDATE paciente
 		SET password_hash = ${nuevoHash},
-		    password_cambiado_en = NOW()
+		    password_cambiado_en = NOW() AT TIME ZONE 'America/Lima'
 		WHERE id_paciente = ${id_paciente}
 	`;
 
@@ -287,7 +287,7 @@ export async function cambiarPasswordPacientePrimerLogin(id_paciente, passwordNu
 	await sql`
 		UPDATE paciente
 		SET password_hash = ${nuevoHash},
-		    password_cambiado_en = NOW()
+		    password_cambiado_en = NOW() AT TIME ZONE 'America/Lima'
 		WHERE id_paciente = ${id_paciente}
 	`;
 

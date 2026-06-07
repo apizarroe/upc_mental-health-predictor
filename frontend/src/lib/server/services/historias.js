@@ -160,9 +160,9 @@ export async function cerrarHistoria(id, motivoCierre, idEspecialista) {
 		UPDATE historia_clinica
 		SET
 			situacion_historia = 'Cerrada',
-			fecha_cierre = NOW(),
+			fecha_cierre = NOW() AT TIME ZONE 'America/Lima',
 			motivo_cierre = ${motivoCierre},
-			fecha_actualizacion = NOW(),
+			fecha_actualizacion = NOW() AT TIME ZONE 'America/Lima',
 			especialista_actualizacion = ${idEspecialista}
 		WHERE id_historia = ${id}
 		RETURNING *

@@ -1,6 +1,9 @@
 """
 Fuente única de keywords para detección de depresión y ansiedad.
 Todos los módulos (pipeline, entrenamiento, etiquetado, preprocesador) importan desde aquí.
+
+Señales de riesgo extremo (ideación suicida, autolesión, crisis severa) NO están aquí —
+están en risk_detector.py donde se aplica manejo de negación determinista.
 """
 
 DEPRESSION_KEYWORDS = {
@@ -25,6 +28,18 @@ DEPRESSION_KEYWORDS = {
     'me da igual todo': 2, 'todo me cuesta': 2,
     'ya no disfruto': 2, 'no encuentro sentido': 2,
     'siento que no tiene sentido': 2, 'me siento muy sola': 2, 'me siento muy solo': 2,
+    # DSM-5: Anhedonia — pérdida de interés o placer (no solapan con ansiedad)
+    'nada me alegra': 2, 'perdí el interés': 2, 'ya no me importa nada': 2,
+    'no siento nada': 2, 'nada me da placer': 2, 'ya no me da alegría': 2,
+    # DSM-5: Cambios cognitivos (excluye 'no puedo concentrarme', ya en ansiedad)
+    'no puedo pensar': 2, 'me cuesta concentrarme': 2, 'me cuesta tomar decisiones': 2,
+    'no recuerdo nada': 1, 'mente en blanco': 1,
+    # DSM-5: Cambios somáticos — apetito y sueño (excluye 'no puedo dormir', ya en ansiedad)
+    'no tengo apetito': 2, 'no puedo comer': 2, 'duermo demasiado': 1,
+    'me cuesta levantarme': 1, 'no tengo hambre': 1,
+    # DSM-5: Aislamiento social
+    'me alejo de todos': 2, 'no quiero ver a nadie': 2, 'me encierro en casa': 2,
+    'evito salir': 1, 'prefiero estar solo': 1, 'prefiero estar sola': 1, 'me aíslo': 1,
     # Palabras exclusivas (peso 1)
     'anhedonia': 1, 'desesperanza': 1, 'apatía': 1, 'desgano': 1,
     'melancolía': 1, 'autoculpa': 1, 'abatido': 1, 'abatida': 1,
@@ -63,6 +78,18 @@ ANXIETY_KEYWORDS = {
     'lucha constante': 2, 'siento como si estuviera constantemente': 2,
     'afectando mi bienestar': 2, 'afecta mi salud mental': 2,
     'me resulta difícil': 2, 'difícil mantener el equilibrio': 2,
+    # DSM-5: Ataques de pánico (no solapan con depresión)
+    'ataque de pánico': 2, 'siento que me voy a desmayar': 2,
+    'siento que me voy a morir': 2, 'me da un ataque de ansiedad': 2,
+    # DSM-5: Evitación conductual
+    'evito situaciones': 2, 'tengo miedo de salir': 2, 'me da miedo la gente': 2,
+    'evito lugares': 2,
+    # DSM-5: Síntomas físicos de ansiedad (excluye 'siento el corazón acelerado', ya existe)
+    'me tiemblan las manos': 2, 'nudo en el estómago': 2,
+    'me duele el pecho': 1, 'sudo de los nervios': 1,
+    # DSM-5: Preocupación anticipatoria
+    'no puedo dejar de pensar': 2, 'siempre espero lo peor': 2,
+    'me anticipo al desastre': 1, 'todo puede salir mal': 1,
     # Palabras exclusivas (peso 1)
     'hiperventilación': 1, 'taquicardia': 1, 'rumiación': 1, 'catastrofismo': 1,
     'pánico': 1, 'angustia': 1, 'inquietud': 1, 'hipervigilancia': 1,

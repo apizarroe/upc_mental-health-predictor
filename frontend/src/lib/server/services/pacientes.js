@@ -80,7 +80,7 @@ export async function createPaciente(data) {
 			${data.contacto_emergencia}::varchar,
 			${data.telefono_emergencia}::varchar,
 			${passwordHash}::varchar,
-			NOW(),
+			NOW() AT TIME ZONE 'America/Lima',
 			true
 		)
 		RETURNING *

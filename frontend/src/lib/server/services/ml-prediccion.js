@@ -53,11 +53,18 @@ export async function enviarPrediccion(idRespuesta, respuestas) {
 }
 
 /**
- * Calcula el nivel de riesgo global basado en las probabilidades
- * @param {Object} predictions - Predicciones del ML
+ * Resuelve el nivel de riesgo global priorizando el detector de crisis
+ * sobre el cálculo basado en probabilidades.
+ * @param {Object} predictions
+ * @param {Object|null} riskAssessment - Resultado de risk_detector del backend
  * @returns {string} - 'bajo', 'moderado', 'alto'
  */
-function calcularNivelRiesgo(predictions) {
+function calcularNivelRiesgo(predictions, riskAssessment = null) {
+	// El detector de crisis tiene prioridad absoluta
+	if (riskAssessment?.nivel_riesgo === 'alto') return 'alto';
+	if (riskAssessment?.nivel_riesgo === 'medio') return 'moderado';
+
+	// Fallback: cálculo basado en probabilidades del clasificador
 	const depProb = predictions.depression?.probability || 0;
 	const anxProb = predictions.anxiety?.probability || 0;
 	const maxProb = Math.max(depProb, anxProb);
@@ -68,11 +75,13 @@ function calcularNivelRiesgo(predictions) {
 }
 
 /**
- * Determina si requiere atención basado en las predicciones
- * @param {Object} predictions - Predicciones del ML
+ * Determina si requiere atención priorizando el detector de crisis.
+ * @param {Object} predictions
+ * @param {Object|null} riskAssessment
  * @returns {boolean}
  */
-function requiereAtencion(predictions) {
+function requiereAtencion(predictions, riskAssessment = null) {
+	if (riskAssessment?.requiere_atencion === true) return true;
 	return calcularNivelRiesgo(predictions) === 'alto';
 }
 
@@ -85,7 +94,7 @@ function requiereAtencion(predictions) {
 export async function crearEvaluacionML(idRespuesta, mlResult) {
 	console.log('💾 Guardando evaluación ML en base de datos...');
 
-	const { predictions, summary, analysis, model_info } = mlResult;
+	const { predictions, summary, analysis, model_info, risk_assessment } = mlResult;
 
 	// Preparar datos para JSONB
 	const trastornosDetectados = {
@@ -100,7 +109,8 @@ export async function crearEvaluacionML(idRespuesta, mlResult) {
 			probability: predictions.anxiety.probability,
 			confidence: predictions.anxiety.confidence,
 			label: predictions.anxiety.label
-		}
+		},
+		risk_assessment: risk_assessment ?? null
 	};
 
 	const palabrasClave = {
@@ -117,6 +127,7 @@ export async function crearEvaluacionML(idRespuesta, mlResult) {
 	const [evaluacion] = await sql`
 		INSERT INTO evaluacion_ml (
 			id_respuesta,
+			fecha_evaluacion,
 			modelo_nombre,
 			modelo_tipo,
 			modelo_version,
@@ -129,14 +140,15 @@ export async function crearEvaluacionML(idRespuesta, mlResult) {
 			metricas_modelo
 		) VALUES (
 			${idRespuesta},
+			NOW() AT TIME ZONE 'America/Lima',
 			${model_info.model_name},
 			${model_info.model_type},
 			${model_info.bert_model},
 			${sql.json(trastornosDetectados)},
 			${summary.conditions_detected},
-			${calcularNivelRiesgo(predictions)},
+			${calcularNivelRiesgo(predictions, risk_assessment)},
 			${summary.interpretation},
-			${requiereAtencion(predictions)},
+			${requiereAtencion(predictions, risk_assessment)},
 			${sql.json(palabrasClave)},
 			${sql.json(metricasModelo)}
 		)

@@ -16,6 +16,7 @@ from .text_processing import clean_text
 from .transformer_encoder import TransformerEncoder
 from .keywords import DEPRESSION_KEYWORDS, ANXIETY_KEYWORDS
 from .preprocessor import TextPreprocessor
+from .risk_detector import detect_risk
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
@@ -185,6 +186,7 @@ class PredictionPipeline:
                 'has_anxiety': has_anxiety,
                 'conditions_detected': [c for c, v in [('depression', has_depression), ('anxiety', has_anxiety)] if v],
             },
+            'risk_assessment': detect_risk(text),
         }
 
         if return_probabilities:
@@ -243,6 +245,7 @@ class PredictionPipeline:
                     'has_anxiety': has_anxiety,
                     'conditions_detected': [c for c, v in [('depression', has_depression), ('anxiety', has_anxiety)] if v],
                 },
+                'risk_assessment': detect_risk(processed[i]),
             }
             if return_probabilities:
                 r['predictions']['depression']['probability'] = prob_depression

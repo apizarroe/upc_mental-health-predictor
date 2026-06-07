@@ -52,7 +52,7 @@ async function resetearIntentosFallidos(usuario) {
 		UPDATE especialista
 		SET intentos_fallidos = 0,
 		    bloqueado_hasta = NULL,
-		    ultimo_acceso = NOW()
+		    ultimo_acceso = NOW() AT TIME ZONE 'America/Lima'
 		WHERE usuario = ${usuario}
 	`;
 }
@@ -193,7 +193,7 @@ export async function cambiarPassword(id_especialista, passwordActual, passwordN
 	await sql`
 		UPDATE especialista
 		SET password_hash = ${nuevoHash},
-		    password_cambiado_en = NOW()
+		    password_cambiado_en = NOW() AT TIME ZONE 'America/Lima'
 		WHERE id_especialista = ${id_especialista}
 	`;
 
@@ -280,7 +280,7 @@ export async function cambiarPasswordPrimerLogin(id_especialista, passwordNueva)
 	await sql`
 		UPDATE especialista
 		SET password_hash = ${nuevoHash},
-		    password_cambiado_en = NOW()
+		    password_cambiado_en = NOW() AT TIME ZONE 'America/Lima'
 		WHERE id_especialista = ${id_especialista}
 	`;
 
