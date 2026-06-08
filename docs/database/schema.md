@@ -143,15 +143,16 @@ CREATE INDEX idx_medicacion_fecha ON paciente_medicacion(fecha_registro DESC); -
 
 Registro de respuestas diarias del paciente al cuestionario de seguimiento. Cada registro representa una sesión de respuesta que será procesada por el modelo de ML.
 
-| Campo                | Tipo        | Restricciones                 | Descripción                                 |
-| -------------------- | ----------- | ----------------------------- | ------------------------------------------- |
-| id_respuesta         | BIGSERIAL   | PRIMARY KEY                   | Identificador único de la respuesta         |
-| id_paciente          | BIGINT      | FOREIGN KEY, NOT NULL         | Referencia a paciente(id_paciente)          |
-| fecha_respuesta      | TIMESTAMP   | DEFAULT NOW, NOT NULL         | Fecha y hora de la respuesta                |
-| respuestas           | JSONB       | NOT NULL                      | Respuestas del cuestionario en formato JSON |
-| estado_procesamiento | VARCHAR(20) | DEFAULT 'pendiente', NOT NULL | Estado: 'pendiente', 'procesado', 'error'   |
-| id_evaluacion        | BIGINT      | FOREIGN KEY                   | Referencia a evaluacion_ml(id_evaluacion)   |
-| error_mensaje        | TEXT        |                               | Mensaje de error si el procesamiento falló  |
+| Campo                | Tipo        | Restricciones                 | Descripción                                                                                                  |
+| -------------------- | ----------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| id_respuesta         | BIGSERIAL   | PRIMARY KEY                   | Identificador único de la respuesta                                                                          |
+| id_paciente          | BIGINT      | FOREIGN KEY, NOT NULL         | Referencia a paciente(id_paciente)                                                                           |
+| fecha_respuesta      | TIMESTAMP   | DEFAULT NOW, NOT NULL         | Fecha y hora de la respuesta                                                                                 |
+| respuestas           | JSONB       | NOT NULL                      | Respuestas del cuestionario en formato JSON                                                                  |
+| estado_procesamiento | VARCHAR(20) | DEFAULT 'pendiente', NOT NULL | Estado: 'pendiente', 'procesado', 'error'                                                                    |
+| id_evaluacion        | BIGINT      | FOREIGN KEY                   | Referencia a evaluacion_ml(id_evaluacion)                                                                    |
+| error_mensaje        | TEXT        |                               | Mensaje de error si el procesamiento falló                                                                   |
+| riesgo_atendido      | BOOLEAN     |                               | Marca si el especialista tomó acción ante señales de riesgo detectadas en la nota. Nace en NULL y solo puede pasar a TRUE (no existe estado FALSE) |
 
 **Relaciones:**
 

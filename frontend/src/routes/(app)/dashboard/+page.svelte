@@ -1,5 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
+
+	let { data } = $props();
 </script>
 
 <svelte:head>
@@ -26,7 +28,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Pacientes Activos</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">24</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.pacientesActivos}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,8 +42,8 @@
 			<div class="bg-white rounded-xl shadow-lg p-6">
 				<div class="flex items-center justify-between">
 					<div>
-						<p class="text-sm font-medium text-gray-600">Sesiones Hoy</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">8</p>
+						<p class="text-sm font-medium text-gray-600">Notas Diarias Hoy</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.notasDiariasHoy}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,8 +57,8 @@
 			<div class="bg-white rounded-xl shadow-lg p-6">
 				<div class="flex items-center justify-between">
 					<div>
-						<p class="text-sm font-medium text-gray-600">Diagnósticos Pendientes</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">5</p>
+						<p class="text-sm font-medium text-gray-600">Atenciones Clínicas</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.atencionesHoy}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +73,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Alertas Críticas</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">2</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.alertasCriticas}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

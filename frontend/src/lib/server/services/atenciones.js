@@ -35,6 +35,20 @@ export async function createAtencion(idHistoria, idEspecialista, data) {
 	return atencion;
 }
 
+/**
+ * Cuenta las atenciones clínicas registradas en el día de hoy (zona horaria Lima).
+ * @returns {Promise<number>} - Total de atenciones de hoy
+ */
+export async function contarAtencionesDeHoy() {
+	const [result] = await sql`
+		SELECT COUNT(*) AS count
+		FROM atencion
+		WHERE TO_CHAR(fecha_atencion AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
+			= TO_CHAR(NOW() AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
+	`;
+	return parseInt(result.count);
+}
+
 export async function updateAtencion(idAtencion, idEspecialista, data) {
 	const [atencion] = await sql`
 		UPDATE atencion
