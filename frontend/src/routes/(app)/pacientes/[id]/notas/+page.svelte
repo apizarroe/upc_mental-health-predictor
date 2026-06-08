@@ -31,6 +31,11 @@
 		};
 		return badges[nivel] || 'bg-gray-100 text-gray-800';
 	}
+
+	function tieneSenalesRiesgo(respuesta) {
+		const señales = respuesta.trastornos_detectados?.risk_assessment?.señales_detectadas;
+		return Array.isArray(señales) && señales.length > 0;
+	}
 </script>
 
 <svelte:head>
@@ -108,8 +113,11 @@
 								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Nivel de Riesgo
 								</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-									Requiere Atención
+								<th class="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
+									Señales de riesgo
+								</th>
+								<th class="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
+									Riesgo Atendido
 								</th>
 								<th class="px-6 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
 									Acciones
@@ -137,12 +145,25 @@
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-center">
-										{#if respuesta.requiere_atencion}
+										{#if tieneSenalesRiesgo(respuesta)}
 											<svg class="w-5 h-5 text-red-600 inline-block" fill="currentColor" viewBox="0 0 20 20">
 												<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
 											</svg>
 										{:else}
 											<span class="text-neutral-400 text-sm">-</span>
+										{/if}
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-center">
+										{#if !tieneSenalesRiesgo(respuesta)}
+											<span class="text-neutral-400 text-sm">-</span>
+										{:else if respuesta.riesgo_atendido}
+											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+												Atendido
+											</span>
+										{:else}
+											<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+												Pendiente
+											</span>
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-center">

@@ -36,12 +36,13 @@ export async function createAtencion(idHistoria, idEspecialista, data) {
 }
 
 /**
- * Obtiene las atenciones clínicas más recientes registradas en el sistema,
+ * Obtiene las atenciones clínicas más recientes registradas por un especialista,
  * incluyendo el nombre del paciente atendido.
+ * @param {number} idEspecialista - ID del especialista que registró las atenciones
  * @param {number} limite - Cantidad máxima de atenciones a retornar
  * @returns {Promise<Array>} - Atenciones ordenadas de la más reciente a la más antigua
  */
-export async function getAtencionesRecientes(limite = 7) {
+export async function getAtencionesRecientes(idEspecialista, limite = 7) {
 	return sql`
 		SELECT
 			a.id_atencion,
@@ -53,6 +54,7 @@ export async function getAtencionesRecientes(limite = 7) {
 		FROM atencion a
 		JOIN historia_clinica hc ON hc.id_historia = a.id_historia
 		JOIN paciente p ON p.id_paciente = hc.id_paciente
+		WHERE a.id_especialista = ${idEspecialista}
 		ORDER BY a.fecha_atencion DESC
 		LIMIT ${limite}
 	`;

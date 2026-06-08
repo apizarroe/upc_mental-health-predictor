@@ -211,6 +211,8 @@ export async function getRespuestasPaginadas(idPaciente, limite = 10, offset = 0
 			pr.id_respuesta,
 			pr.fecha_respuesta,
 			pr.estado_procesamiento,
+			pr.riesgo_atendido,
+			em.trastornos_detectados,
 			em.condiciones_detectadas,
 			em.nivel_riesgo_global,
 			em.requiere_atencion
