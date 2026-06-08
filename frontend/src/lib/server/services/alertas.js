@@ -49,6 +49,30 @@ export async function getAlertasRiesgo(idEspecialista) {
 }
 
 /**
+ * Cuenta el total de alertas de riesgo pendientes en el sistema (todos los especialistas),
+ * en la ventana de los últimos 14 días.
+ * @returns {Promise<number>} - Total de alertas pendientes
+ */
+export async function getConteoAlertasTotal() {
+	try {
+		const [result] = await sql`
+			SELECT COUNT(*) AS total
+			FROM paciente_respuesta pr
+			JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
+			WHERE
+				em.trastornos_detectados IS NOT NULL
+				AND em.trastornos_detectados ? 'risk_assessment'
+				AND jsonb_array_length(em.trastornos_detectados->'risk_assessment'->'señales_detectadas') > 0
+				AND em.fecha_evaluacion >= NOW() AT TIME ZONE 'America/Lima' - INTERVAL '14 days'
+				AND pr.riesgo_atendido IS NOT TRUE
+		`;
+		return parseInt(result.total);
+	} catch {
+		return 0;
+	}
+}
+
+/**
  * Cuenta las alertas de riesgo pendientes de pacientes atendidos por el especialista
  * (relación paciente -> atencion -> especialista), en la ventana de los últimos 14 días.
  * @param {number} idEspecialista - ID del especialista

@@ -239,16 +239,14 @@ export async function contarRespuestas(idPaciente) {
 }
 
 /**
- * Cuenta las notas diarias (respuestas) registradas en el día de hoy (zona horaria Lima),
- * sin importar el paciente.
- * @returns {Promise<number>} - Total de notas diarias de hoy
+ * Cuenta el total de notas diarias (respuestas) registradas en el sistema,
+ * sin importar el paciente ni la fecha.
+ * @returns {Promise<number>} - Total de notas diarias
  */
-export async function contarRespuestasDeHoy() {
+export async function contarTodasRespuestas() {
 	const [result] = await sql`
 		SELECT COUNT(*) AS count
 		FROM paciente_respuesta
-		WHERE TO_CHAR(fecha_respuesta AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
-			= TO_CHAR(NOW() AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
 	`;
 	return parseInt(result.count);
 }

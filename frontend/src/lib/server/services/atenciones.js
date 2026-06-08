@@ -36,15 +36,36 @@ export async function createAtencion(idHistoria, idEspecialista, data) {
 }
 
 /**
- * Cuenta las atenciones clínicas registradas en el día de hoy (zona horaria Lima).
- * @returns {Promise<number>} - Total de atenciones de hoy
+ * Obtiene las atenciones clínicas más recientes registradas en el sistema,
+ * incluyendo el nombre del paciente atendido.
+ * @param {number} limite - Cantidad máxima de atenciones a retornar
+ * @returns {Promise<Array>} - Atenciones ordenadas de la más reciente a la más antigua
  */
-export async function contarAtencionesDeHoy() {
+export async function getAtencionesRecientes(limite = 7) {
+	return sql`
+		SELECT
+			a.id_atencion,
+			a.fecha_atencion,
+			a.tipo_atencion,
+			p.id_paciente,
+			p.nombres   AS paciente_nombres,
+			p.apellidos AS paciente_apellidos
+		FROM atencion a
+		JOIN historia_clinica hc ON hc.id_historia = a.id_historia
+		JOIN paciente p ON p.id_paciente = hc.id_paciente
+		ORDER BY a.fecha_atencion DESC
+		LIMIT ${limite}
+	`;
+}
+
+/**
+ * Cuenta el total de atenciones clínicas registradas en el sistema.
+ * @returns {Promise<number>} - Total de atenciones
+ */
+export async function contarTodasAtenciones() {
 	const [result] = await sql`
 		SELECT COUNT(*) AS count
 		FROM atencion
-		WHERE TO_CHAR(fecha_atencion AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
-			= TO_CHAR(NOW() AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')
 	`;
 	return parseInt(result.count);
 }

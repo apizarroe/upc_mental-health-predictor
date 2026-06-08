@@ -11,8 +11,16 @@ import bcrypt from 'bcrypt';
  */
 export async function getAllPacientes() {
 	const pacientes = await sql`
-		SELECT * FROM paciente
-		ORDER BY id_paciente DESC
+		SELECT
+			p.*,
+			(
+				SELECT MAX(a.fecha_atencion)
+				FROM atencion a
+				JOIN historia_clinica hc ON hc.id_historia = a.id_historia
+				WHERE hc.id_paciente = p.id_paciente
+			) AS fecha_ultima_consulta
+		FROM paciente p
+		ORDER BY p.id_paciente DESC
 	`;
 	return pacientes;
 }

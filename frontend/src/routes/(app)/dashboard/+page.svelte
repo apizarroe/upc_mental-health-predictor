@@ -1,7 +1,22 @@
 <script>
-	import { goto } from '$app/navigation';
-
 	let { data } = $props();
+
+	const badgeTipoAtencion = {
+		Presencial: 'bg-green-100 text-green-800',
+		Virtual: 'bg-blue-100 text-blue-800',
+		Telefónica: 'bg-orange-100 text-orange-800'
+	};
+
+	function formatFechaHora(fecha) {
+		return new Date(fecha).toLocaleString('es-PE', {
+			timeZone: 'America/Lima',
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
 </script>
 
 <svelte:head>
@@ -42,8 +57,8 @@
 			<div class="bg-white rounded-xl shadow-lg p-6">
 				<div class="flex items-center justify-between">
 					<div>
-						<p class="text-sm font-medium text-gray-600">Notas Diarias Hoy</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">{data.notasDiariasHoy}</p>
+						<p class="text-sm font-medium text-gray-600">Notas Diarias</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.notasDiarias}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +73,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Atenciones Clínicas</p>
-						<p class="text-3xl font-bold text-gray-900 mt-2">{data.atencionesHoy}</p>
+						<p class="text-3xl font-bold text-gray-900 mt-2">{data.atenciones}</p>
 					</div>
 					<div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
 						<svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,93 +99,41 @@
 			</div>
 		</div>
 
-		<!-- Pacientes Recientes -->
+		<!-- Atenciones Recientes -->
 		<div class="bg-white rounded-xl shadow-lg overflow-hidden">
-			<div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-				<h2 class="text-lg font-semibold text-gray-900">Pacientes Recientes</h2>
-				<button
-					onclick={() => goto('/pacientes')}
-					class="text-sm font-medium text-blue-600 hover:text-blue-800"
-				>
-					Ver todos
-				</button>
+			<div class="px-6 py-4 border-b border-gray-200">
+				<h2 class="text-lg font-semibold text-gray-900">Atenciones Recientes</h2>
 			</div>
-			<div class="divide-y divide-gray-200">
-				<!-- Paciente 1 -->
-				<div class="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center space-x-4">
-							<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-								<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-								</svg>
-							</div>
-							<div>
-								<p class="text-sm font-semibold text-gray-900">María García</p>
-								<p class="text-xs text-gray-500">28 años • 5 sesiones</p>
+			{#if data.atencionesRecientes.length === 0}
+				<p class="px-6 py-8 text-center text-sm text-gray-500">
+					No se han registrado atenciones clínicas todavía.
+				</p>
+			{:else}
+				<div class="divide-y divide-gray-200">
+					{#each data.atencionesRecientes as atencion (atencion.id_atencion)}
+						<div class="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center space-x-4">
+									<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+										<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+										</svg>
+									</div>
+									<div>
+										<p class="text-sm font-semibold text-gray-900">
+											{atencion.paciente_nombres} {atencion.paciente_apellidos}
+										</p>
+										<p class="text-xs text-gray-500">{formatFechaHora(atencion.fecha_atencion)}</p>
+									</div>
+								</div>
+								<span class="px-3 py-1 text-xs font-medium rounded-full {badgeTipoAtencion[atencion.tipo_atencion] ?? 'bg-gray-100 text-gray-800'}">
+									{atencion.tipo_atencion}
+								</span>
 							</div>
 						</div>
-						<div class="flex items-center space-x-2">
-							<span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-								Riesgo bajo
-							</span>
-							<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-							</svg>
-						</div>
-					</div>
+					{/each}
 				</div>
-
-				<!-- Paciente 2 -->
-				<div class="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center space-x-4">
-							<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-								<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-								</svg>
-							</div>
-							<div>
-								<p class="text-sm font-semibold text-gray-900">Carlos Rodríguez</p>
-								<p class="text-xs text-gray-500">35 años • 3 sesiones</p>
-							</div>
-						</div>
-						<div class="flex items-center space-x-2">
-							<span class="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-								Riesgo medio
-							</span>
-							<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-							</svg>
-						</div>
-					</div>
-				</div>
-
-				<!-- Paciente 3 -->
-				<div class="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center space-x-4">
-							<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-								<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-								</svg>
-							</div>
-							<div>
-								<p class="text-sm font-semibold text-gray-900">Ana Martínez</p>
-								<p class="text-xs text-gray-500">42 años • 8 sesiones</p>
-							</div>
-						</div>
-						<div class="flex items-center space-x-2">
-							<span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-								Riesgo alto
-							</span>
-							<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-							</svg>
-						</div>
-					</div>
-				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 </div>
