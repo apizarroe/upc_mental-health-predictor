@@ -8,6 +8,19 @@
 	let error = $state('');
 	let successMessage = $state('');
 
+	function isoADisplay(isoDate) {
+		if (!isoDate) return '';
+		const [y, m, d] = isoDate.split('-');
+		return `${d}/${m}/${y}`;
+	}
+
+	function displayAIso(displayDate) {
+		if (!displayDate || displayDate.length !== 10) return '';
+		const [d, m, y] = displayDate.split('/');
+		if (!d || !m || !y || y.length !== 4) return '';
+		return `${y}-${m}-${d}`;
+	}
+
 	function formatearFechaInput(fecha) {
 		return fecha.toISOString().slice(0, 10);
 	}
@@ -26,6 +39,21 @@
 
 	let fechaInicio = $state(defaultRange.fechaInicio);
 	let fechaFin = $state(defaultRange.fechaFin);
+
+	let fechaInicioDisplay = $state(isoADisplay(defaultRange.fechaInicio));
+	let fechaFinDisplay = $state(isoADisplay(defaultRange.fechaFin));
+
+	function onFechaInicioInput(e) {
+		fechaInicioDisplay = e.currentTarget.value;
+		const iso = displayAIso(fechaInicioDisplay);
+		if (iso) fechaInicio = iso;
+	}
+
+	function onFechaFinInput(e) {
+		fechaFinDisplay = e.currentTarget.value;
+		const iso = displayAIso(fechaFinDisplay);
+		if (iso) fechaFin = iso;
+	}
 
 	onMount(async () => {
 		await cargarReportes();
@@ -152,13 +180,35 @@
 						<label for="fecha_inicio" class="mb-2 block text-sm font-medium text-neutral-700">
 							Fecha inicio
 						</label>
-						<input id="fecha_inicio" type="date" bind:value={fechaInicio} class="form-input" />
+						<div class="relative">
+							<input id="fecha_inicio" type="text" placeholder="dd/mm/yyyy" maxlength="10"
+								value={fechaInicioDisplay} oninput={onFechaInicioInput} class="form-input pr-10" />
+							<input type="date" class="absolute inset-0 opacity-0 w-full cursor-pointer"
+								value={fechaInicio}
+								onchange={(e) => { fechaInicio = e.currentTarget.value; fechaInicioDisplay = isoADisplay(e.currentTarget.value); }} />
+							<span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+								</svg>
+							</span>
+						</div>
 					</div>
 					<div>
 						<label for="fecha_fin" class="mb-2 block text-sm font-medium text-neutral-700">
 							Fecha fin
 						</label>
-						<input id="fecha_fin" type="date" bind:value={fechaFin} class="form-input" />
+						<div class="relative">
+							<input id="fecha_fin" type="text" placeholder="dd/mm/yyyy" maxlength="10"
+								value={fechaFinDisplay} oninput={onFechaFinInput} class="form-input pr-10" />
+							<input type="date" class="absolute inset-0 opacity-0 w-full cursor-pointer"
+								value={fechaFin}
+								onchange={(e) => { fechaFin = e.currentTarget.value; fechaFinDisplay = isoADisplay(e.currentTarget.value); }} />
+							<span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400">
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+								</svg>
+							</span>
+						</div>
 					</div>
 					<div class="flex items-end md:col-span-2">
 						<button
