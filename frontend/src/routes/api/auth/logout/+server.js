@@ -7,7 +7,12 @@ import { json } from '@sveltejs/kit';
 export async function POST({ cookies }) {
 	try {
 		// Eliminar cookie de sesión
-		cookies.delete('session', { path: '/' });
+		cookies.delete('session', {
+			path: '/',
+			httpOnly: true,
+			secure: process.env.COOKIE_SECURE === 'true',
+			sameSite: 'strict'
+		});
 
 		return json({
 			success: true,

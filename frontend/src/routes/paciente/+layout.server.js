@@ -50,7 +50,7 @@ export async function load({ cookies }) {
 		cookies.set('session-paciente', JSON.stringify(sessionData), {
 			path: '/',
 			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
+			secure: process.env.COOKIE_SECURE === 'true',
 			sameSite: 'strict',
 			maxAge: 60 * 30
 		});

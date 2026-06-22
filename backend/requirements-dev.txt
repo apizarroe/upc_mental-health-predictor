@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0
+
+# Formateo y linting
+ruff==0.1.14
+mypy==1.8.0

@@ -1,14 +1,11 @@
 import postgres from 'postgres';
-import { DATABASE_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-/**
- * Cliente de PostgreSQL usando postgres.js
- * Configurado para el pool de conexiones
- */
-const sql = postgres(DATABASE_URL, {
-	max: 10, // Máximo de conexiones en el pool
-	idle_timeout: 20, // Timeout en segundos
-	connect_timeout: 10
+const sql = postgres(env.DATABASE_URL, {
+	max: 10,
+	idle_timeout: 20,
+	connect_timeout: 10,
+	ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 export default sql;
