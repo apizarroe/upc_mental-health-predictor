@@ -39,7 +39,7 @@ export async function POST({ request, cookies }) {
 		cookies.set('session', JSON.stringify(sessionData), {
 			path: '/',
 			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
+			secure: process.env.COOKIE_SECURE === 'true',
 			sameSite: 'strict',
 			maxAge: 60 * 30 // 30 minutos en segundos
 		});

@@ -6,7 +6,12 @@ import { json } from '@sveltejs/kit';
  */
 export async function POST({ cookies }) {
 	// Eliminar cookie de sesión de paciente
-	cookies.delete('session-paciente', { path: '/' });
+	cookies.delete('session-paciente', {
+		path: '/',
+		httpOnly: true,
+		secure: process.env.COOKIE_SECURE === 'true',
+		sameSite: 'strict'
+	});
 
 	return json({
 		success: true,
