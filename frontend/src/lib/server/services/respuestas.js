@@ -73,7 +73,7 @@ export async function getRespuestasDelDia(idPaciente) {
 
 	// Obtener componentes de fecha en zona horaria Lima (GMT-5)
 	const partes = new Intl.DateTimeFormat('en-US', {
-		timeZone: 'America/Lima',
+		timeZone: 'UTC',
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
