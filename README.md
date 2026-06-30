@@ -104,7 +104,7 @@ API disponible en `http://localhost:8000` · Docs en `/docs`
 cd frontend
 npm install
 cp .env.example .env
-# Configurar DATABASE_URL, PUBLIC_ML_API_URL y AUTH_SECRET en .env
+# Configurar DATABASE_URL, ML_API_URL y AUTH_SECRET en .env
 npm run dev
 ```
 

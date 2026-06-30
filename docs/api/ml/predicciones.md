@@ -343,10 +343,10 @@ El sistema puede predecir los siguientes trastornos mentales según la clasifica
 
 ```javascript
 // frontend/src/lib/services/ml-api.js
-import { PUBLIC_ML_API_URL } from '$env/static/public';
+const ML_API_URL = process.env.ML_API_URL || 'http://localhost:8000';
 
 export async function predecirTrastorno(texto, modelo = 'bert') {
-  const response = await fetch(`${PUBLIC_ML_API_URL}/predict`, {
+  const response = await fetch(`${ML_API_URL}/predict`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
