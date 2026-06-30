@@ -7,7 +7,8 @@
 		return date.toLocaleDateString('es-PE', {
 			year: 'numeric',
 			month: 'long',
-			day: 'numeric'
+			day: 'numeric',
+			timeZone: 'America/Lima'
 		});
 	}
 
@@ -15,7 +16,8 @@
 		const date = new Date(fecha);
 		return date.toLocaleTimeString('es-PE', {
 			hour: '2-digit',
-			minute: '2-digit'
+			minute: '2-digit',
+			timeZone: 'America/Lima'
 		});
 	}
 

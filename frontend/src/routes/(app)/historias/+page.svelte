@@ -45,7 +45,7 @@
 	function formatDate(dateString) {
 		if (!dateString) return 'N/A';
 		const date = new Date(dateString);
-		return date.toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: 'numeric' });
+		return date.toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Lima' });
 	}
 
 	function getEstadoBadge(situacion) {

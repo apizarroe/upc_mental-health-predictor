@@ -22,7 +22,10 @@
 	}
 
 	function formatearFechaInput(fecha) {
-		return fecha.toISOString().slice(0, 10);
+		const year = fecha.getFullYear();
+		const month = String(fecha.getMonth() + 1).padStart(2, '0');
+		const day = String(fecha.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
 	}
 
 	function getDefaultRange() {
@@ -122,7 +125,8 @@
 			month: 'short',
 			day: 'numeric',
 			hour: '2-digit',
-			minute: '2-digit'
+			minute: '2-digit',
+			timeZone: 'America/Lima'
 		});
 	}
 
@@ -131,7 +135,8 @@
 		return new Date(valor).toLocaleDateString('es-PE', {
 			year: 'numeric',
 			month: 'short',
-			day: 'numeric'
+			day: 'numeric',
+			timeZone: 'America/Lima'
 		});
 	}
 
