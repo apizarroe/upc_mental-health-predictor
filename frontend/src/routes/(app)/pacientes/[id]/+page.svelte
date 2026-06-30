@@ -100,7 +100,8 @@
 		return date.toLocaleDateString('es-PE', {
 			year: 'numeric',
 			month: 'long',
-			day: 'numeric'
+			day: 'numeric',
+			timeZone: 'America/Lima'
 		});
 	}
 

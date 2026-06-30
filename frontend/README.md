@@ -37,7 +37,7 @@ Copiar `.env.example` a `.env`:
 | Variable | Descripción |
 |---|---|
 | `DATABASE_URL` | Conexión PostgreSQL (timezone GMT-5 Lima) |
-| `PUBLIC_ML_API_URL` | URL del ML API (default: `http://localhost:8000`) |
+| `ML_API_URL` | URL del ML API (default: `http://localhost:8000`) |
 | `AUTH_SECRET` | Secret para firmar cookies de sesión |
 
 ## Estructura

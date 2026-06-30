@@ -90,7 +90,12 @@
 
 	function formatDate(dateString) {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' });
+		return date.toLocaleDateString('es-PE', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+			timeZone: 'America/Lima'
+		});
 	}
 
 	function calcularEdad(fechaNacimiento) {

@@ -313,7 +313,7 @@
 											En atención
 										</td>
 										<td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
-											{paciente.fecha_ultima_consulta ? new Date(paciente.fecha_ultima_consulta).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+											{paciente.fecha_ultima_consulta ? new Date(paciente.fecha_ultima_consulta).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' }) : ''}
 										</td>
 									{/if}
 									<td class="px-6 py-4 whitespace-nowrap text-center">

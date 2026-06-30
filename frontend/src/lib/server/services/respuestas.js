@@ -31,7 +31,7 @@ export async function yaRespondioDobleHoy(idPaciente) {
 		SELECT COUNT(*) as count
 		FROM paciente_respuesta
 		WHERE id_paciente = ${idPaciente}
-		AND TO_CHAR(fecha_respuesta AT TIME ZONE 'America/Lima', 'YYYY-MM-DD') = ${fechaHoy}
+		AND TO_CHAR(fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
 	`;
 
 	return parseInt(result.count) >= 2;
@@ -68,12 +68,11 @@ export async function getRespuestasDelDia(idPaciente) {
 	// IMPORTANTE: PostgreSQL guarda los timestamps en la zona horaria del servidor (GMT-5 Lima)
 	// Por lo tanto, debemos comparar con fechas en la misma zona horaria
 
-	// Obtener la fecha/hora actual en UTC
 	const ahora = new Date();
 
 	// Obtener componentes de fecha en zona horaria Lima (GMT-5)
 	const partes = new Intl.DateTimeFormat('en-US', {
-		timeZone: 'UTC',
+		timeZone: 'America/Lima',
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -113,7 +112,7 @@ export async function getRespuestasDelDia(idPaciente) {
 		FROM paciente_respuesta pr
 		LEFT JOIN evaluacion_ml em ON pr.id_evaluacion = em.id_evaluacion
 		WHERE pr.id_paciente = ${idPaciente}
-		AND TO_CHAR(pr.fecha_respuesta AT TIME ZONE 'America/Lima', 'YYYY-MM-DD') = ${fechaHoy}
+		AND TO_CHAR(pr.fecha_respuesta, 'YYYY-MM-DD') = ${fechaHoy}
 		ORDER BY pr.fecha_respuesta DESC
 	`;
 
@@ -411,7 +410,7 @@ export async function replaceObservacionesByRespuesta(idRespuesta, observaciones
 export async function getEvolucionByPaciente(idPaciente, dias = 30) {
 	const rows = await sql`
 		SELECT
-			DATE(pr.fecha_respuesta AT TIME ZONE 'America/Lima') AS fecha,
+			DATE(pr.fecha_respuesta) AS fecha,
 			AVG((em.trastornos_detectados->'depression'->>'probability')::FLOAT) AS prob_depresion,
 			AVG((em.trastornos_detectados->'anxiety'->>'probability')::FLOAT)    AS prob_ansiedad
 		FROM paciente_respuesta pr
@@ -420,7 +419,7 @@ export async function getEvolucionByPaciente(idPaciente, dias = 30) {
 		  AND pr.estado_procesamiento = 'procesado'
 		  AND pr.fecha_respuesta    >= (NOW() AT TIME ZONE 'America/Lima') - (${dias} || ' days')::INTERVAL
 		  AND em.trastornos_detectados IS NOT NULL
-		GROUP BY DATE(pr.fecha_respuesta AT TIME ZONE 'America/Lima')
+		GROUP BY DATE(pr.fecha_respuesta)
 		ORDER BY fecha ASC
 	`;
 

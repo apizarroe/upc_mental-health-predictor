@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 
-const ML_API_URL = process.env.PUBLIC_ML_API_URL || 'http://localhost:8000';
+const ML_API_URL = process.env.ML_API_URL || 'http://localhost:8000';
 
 export async function POST({ request, cookies }) {
 	try {
